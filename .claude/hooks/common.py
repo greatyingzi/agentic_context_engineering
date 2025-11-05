@@ -100,7 +100,7 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
             existing_names.add(name)
     
     # Update scores
-    rating_delta = {"helpful": 1, "harmful": -1, "neutral": 0}
+    rating_delta = {"helpful": 1, "harmful": -3, "neutral": -1}
     name_to_kp = {kp["name"]: kp for kp in playbook["key_points"]}
     
     for eval_item in evaluations:
