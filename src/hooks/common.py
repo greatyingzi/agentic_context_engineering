@@ -77,7 +77,7 @@ def generate_keypoint_name(existing_names: set) -> str:
 
 
 def load_settings() -> dict:
-    settings_path = get_project_dir() / ".claude" / "settings.json"
+    settings_path = get_user_claude_dir() / "settings.json"
 
     if not settings_path.exists():
         return {"playbook_update_on_exit": False}
@@ -88,15 +88,6 @@ def load_settings() -> dict:
         return data
     except Exception:
         return {"playbook_update_on_exit": False}
-
-
-def contains_exit_command(messages: list[dict]) -> bool:
-    """Check if the conversation contains an /exit command."""
-    for msg in messages:
-        content = msg.get('content', '')
-        if isinstance(content, str) and content.strip().startswith('/exit'):
-            return True
-    return False
 
 
 def load_playbook() -> dict:

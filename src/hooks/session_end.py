@@ -5,7 +5,7 @@ import asyncio
 from common import (
     load_playbook, save_playbook, load_transcript,
     extract_keypoints, update_playbook_data, clear_session,
-    load_settings, contains_exit_command
+    load_settings
 )
 
 
@@ -21,7 +21,9 @@ async def main():
     settings = load_settings()
     update_on_exit = settings.get("playbook_update_on_exit", False)
 
-    if not update_on_exit and contains_exit_command(messages):
+    # Skip playbook update for /exit command when setting is disabled
+    reason = input_data.get("reason", "")
+    if not update_on_exit and reason == "prompt_input_exit":
         sys.exit(0)
 
     playbook = load_playbook()
