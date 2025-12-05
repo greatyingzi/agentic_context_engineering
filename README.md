@@ -32,7 +32,7 @@ npm install
 ```bash
 # with uv
 uv venv ~/.claude/.venv
-uv pip install anthropic
+uv pip install --python ~/.claude/.venv/bin/python3 anthropic
 
 # or with pip
 pip3 install anthropic

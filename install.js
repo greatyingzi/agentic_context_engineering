@@ -163,7 +163,7 @@ function ensureVenvAndDeps() {
   }
 
   log('ℹ Ensuring anthropic is installed in the venv via uv...', 'blue');
-  run('uv', ['pip', 'install', 'anthropic']);
+  run('uv', ['pip', 'install', '--python', venvPython, 'anthropic']);
 }
 
 // Main installation function
