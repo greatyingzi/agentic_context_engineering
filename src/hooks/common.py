@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import json
 import os
-from pathlib import Path
+import re
 from datetime import datetime
+from pathlib import Path
+from typing import Optional, Tuple
 
 try:
     import anthropic
@@ -62,6 +64,75 @@ def clear_session():
         session_file.unlink()
 
 
+def normalize_tags(tags: Optional[list[str]], max_tags: int = 6) -> list[str]:
+    """Normalize tag list to lowercase unique values with a soft cap."""
+    normalized = []
+    seen = set()
+
+    tag_list = [tags] if isinstance(tags, str) else (tags or [])
+
+    for tag in tag_list:
+        if not isinstance(tag, str):
+            continue
+        clean = tag.strip().lower()
+        # enforce ascii-only tags to keep output in English
+        try:
+            clean.encode("ascii")
+        except UnicodeEncodeError:
+            continue
+        if not clean or clean in seen:
+            continue
+        normalized.append(clean[:64])
+        seen.add(clean)
+        if len(normalized) >= max_tags:
+            break
+
+    return normalized
+
+
+MAX_KEYPOINTS = 250  # hard cap to keep playbook manageable
+
+
+def infer_tags_from_text(text: str, max_tags: int = 5) -> list[str]:
+    """Heuristic tag extraction when no explicit tags are provided."""
+    stopwords = {
+        "the",
+        "this",
+        "that",
+        "with",
+        "from",
+        "into",
+        "your",
+        "their",
+        "have",
+        "having",
+        "using",
+        "use",
+        "used",
+        "for",
+        "and",
+        "when",
+        "while",
+        "after",
+        "before",
+        "code",
+        "error",
+        "issue",
+        "fix",
+        "task",
+    }
+    words = re.findall(r"[a-zA-Z][a-zA-Z0-9_\-]{2,}", text.lower())
+    tags = []
+    for word in words:
+        if word in stopwords or word.isdigit():
+            continue
+        if word not in tags:
+            tags.append(word)
+        if len(tags) >= max_tags:
+            break
+    return tags
+
+
 def generate_keypoint_name(existing_names: set) -> str:
     max_num = 0
     for name in existing_names:
@@ -107,16 +178,26 @@ def load_playbook() -> dict:
 
         for item in data["key_points"]:
             if isinstance(item, str):
-                name = generate_keypoint_name(existing_names)
-                keypoints.append({"name": name, "text": item, "score": 0})
-                existing_names.add(name)
+                keypoint = {
+                    "name": generate_keypoint_name(existing_names),
+                    "text": item,
+                    "score": 0,
+                }
             elif isinstance(item, dict):
-                if "name" not in item:
-                    item["name"] = generate_keypoint_name(existing_names)
-                if "score" not in item:
-                    item["score"] = 0
-                existing_names.add(item["name"])
-                keypoints.append(item)
+                keypoint = dict(item)
+                if "name" not in keypoint:
+                    keypoint["name"] = generate_keypoint_name(existing_names)
+                if "score" not in keypoint:
+                    keypoint["score"] = 0
+            else:
+                continue
+
+            keypoint["tags"] = normalize_tags(keypoint.get("tags", []))
+            if not keypoint["tags"]:
+                keypoint["tags"] = infer_tags_from_text(keypoint.get("text", ""))
+
+            existing_names.add(keypoint["name"])
+            keypoints.append(keypoint)
 
         data["key_points"] = keypoints
         return data
@@ -134,17 +215,24 @@ def save_playbook(playbook: dict):
         json.dump(playbook, f, indent=2, ensure_ascii=False)
 
 
-def format_playbook(playbook: dict) -> str:
-    key_points = playbook.get("key_points", [])
-    if not key_points:
+def format_playbook(
+    playbook: dict,
+    key_points: Optional[list[dict]] = None,
+    tags: Optional[list[str]] = None,
+) -> str:
+    selected_key_points = key_points if key_points is not None else playbook.get("key_points", [])
+    if not selected_key_points:
         return ""
 
+    tags_text = ", ".join(tags) if tags else "all topics"
     key_points_text = "\n".join(
-        f"- {kp['text'] if isinstance(kp, dict) else kp}" for kp in key_points
+        f"- [score={kp.get('score', 0)}][tags={','.join(kp.get('tags', []))}] {kp.get('text', '')}"
+        for kp in selected_key_points
+        if isinstance(kp, dict)
     )
 
     template = load_template("playbook.txt")
-    return template.format(key_points=key_points_text)
+    return template.format(key_points=key_points_text, tags=tags_text)
 
 
 def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
@@ -154,11 +242,30 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
     existing_names = {kp["name"] for kp in playbook["key_points"]}
     existing_texts = {kp["text"] for kp in playbook["key_points"]}
 
-    for text in new_key_points:
-        if text and text not in existing_texts:
-            name = generate_keypoint_name(existing_names)
-            playbook["key_points"].append({"name": name, "text": text, "score": 0})
-            existing_names.add(name)
+    for item in new_key_points:
+        if isinstance(item, str):
+            text = item
+            tags = []
+        elif isinstance(item, dict):
+            text = item.get("text", "")
+            tags = normalize_tags(item.get("tags", []))
+        else:
+            continue
+
+        if not text or text in existing_texts:
+            continue
+
+        name = generate_keypoint_name(existing_names)
+        playbook["key_points"].append(
+            {
+                "name": name,
+                "text": text,
+                "score": 0,
+                "tags": tags or infer_tags_from_text(text),
+            }
+        )
+        existing_names.add(name)
+        existing_texts.add(text)
 
     rating_delta = {"helpful": 1, "harmful": -3, "neutral": -1}
     name_to_kp = {kp["name"]: kp for kp in playbook["key_points"]}
@@ -174,7 +281,92 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
         kp for kp in playbook["key_points"] if kp.get("score", 0) > -5
     ]
 
+    # Enforce a hard cap by score to keep playbook size bounded.
+    if len(playbook["key_points"]) > MAX_KEYPOINTS:
+        playbook["key_points"] = sorted(
+            playbook["key_points"],
+            key=lambda kp: (-kp.get("score", 0), kp.get("name", "")),
+        )[:MAX_KEYPOINTS]
+
     return playbook
+
+
+def select_relevant_keypoints(
+    playbook: dict, tags: list[str], limit: int = 6, prompt_tags: Optional[list[str]] = None
+) -> list[dict]:
+    """Pick the highest scoring key points that match the requested tags."""
+    key_points = playbook.get("key_points", [])
+    if not key_points:
+        return []
+
+    desired_tags = [t.lower() for t in tags or [] if isinstance(t, str)]
+    prompt_tag_set = {t.lower() for t in (prompt_tags or [])}
+
+    def tag_match_score(kp_tag: str, desired: str) -> int:
+        """Exact = 3, substring = 2, token overlap = 1, else 0."""
+        if kp_tag == desired:
+            return 3
+        if kp_tag in desired or desired in kp_tag:
+            return 2
+        kp_tokens = set(re.split(r"[^a-z0-9]+", kp_tag))
+        desired_tokens = set(re.split(r"[^a-z0-9]+", desired))
+        kp_tokens.discard("")
+        desired_tokens.discard("")
+        return 1 if kp_tokens & desired_tokens else 0
+
+    def score_and_coverage(kp_tags: list[str]) -> tuple[int, int, int]:
+        best = 0
+        matched = set()
+        prompt_hits = 0
+        for kp_tag in kp_tags:
+            kp_norm = kp_tag.lower()
+            for desired in desired_tags:
+                s = tag_match_score(kp_norm, desired)
+                if s > 0:
+                    matched.add(desired)
+                    if desired in prompt_tag_set:
+                        prompt_hits += 1
+                    best = max(best, s)
+                    if best == 3 and len(matched) == len(desired_tags):
+                        return best, len(matched), prompt_hits
+        return best, len(matched), prompt_hits
+
+    matching = []
+    if desired_tags:
+        for kp in key_points:
+            kp_tags = [t for t in kp.get("tags", []) if isinstance(t, str)]
+            score, coverage, prompt_hits = score_and_coverage(kp_tags)
+            if score > 0 and coverage > 0:
+                kp = dict(kp)
+                kp["_match_score"] = score
+                kp["_match_coverage"] = coverage
+                kp["_prompt_hits"] = prompt_hits
+                kp["_total_match"] = (
+                    10 * coverage
+                    + 3 * score
+                    + 5 * prompt_hits
+                    + kp.get("score", 0)
+                )
+                matching.append(kp)
+
+    # If tags were requested but none matched even fuzzily, return empty to avoid unrelated injection.
+    if desired_tags and not matching:
+        return []
+
+    pool = matching if matching else key_points
+
+    sorted_pool = sorted(
+        pool,
+        key=lambda kp: (
+            -kp.get("_total_match", 0),
+            -kp.get("_match_coverage", 0),
+            -kp.get("_match_score", 0),
+            -kp.get("_prompt_hits", 0),
+            -kp.get("score", 0),
+            kp.get("name", ""),
+        ),
+    )
+    return sorted_pool[:limit]
 
 
 def load_transcript(transcript_path: str) -> list[dict]:
@@ -226,13 +418,12 @@ def load_template(template_name: str) -> str:
         return f.read()
 
 
-async def extract_keypoints(
-    messages: list[dict], playbook: dict, diagnostic_name: str = "reflection"
-) -> dict:
+def get_anthropic_client() -> Tuple[Optional["anthropic.Anthropic"], Optional[str]]:
+    """Return (client, model). If diagnostics are on, log why a client is missing."""
     if not ANTHROPIC_AVAILABLE:
-        return {"new_key_points": [], "evaluations": []}
-
-    settings = load_settings()
+        if is_diagnostic_mode():
+            save_diagnostic("anthropic not installed", "client_missing")
+        return None, None
 
     model = (
         os.getenv("AGENTIC_CONTEXT_MODEL")
@@ -241,7 +432,9 @@ async def extract_keypoints(
         or "claude-sonnet-4-5-20250929"
     )
     if not model:
-        return {"new_key_points": [], "evaluations": []}
+        if is_diagnostic_mode():
+            save_diagnostic("model not configured", "client_missing")
+        return None, None
 
     api_key = (
         os.getenv("AGENTIC_CONTEXT_API_KEY")
@@ -249,10 +442,94 @@ async def extract_keypoints(
         or os.getenv("ANTHROPIC_API_KEY")
     )
     if not api_key:
-        return {"new_key_points": [], "evaluations": []}
+        if is_diagnostic_mode():
+            save_diagnostic("api key not configured", "client_missing")
+        return None, None
 
     base_url = os.getenv("AGENTIC_CONTEXT_BASE_URL") or os.getenv("ANTHROPIC_BASE_URL")
-    if not base_url:
+
+    client = (
+        anthropic.Anthropic(api_key=api_key, base_url=base_url)
+        if base_url
+        else anthropic.Anthropic(api_key=api_key)
+    )
+    return client, model
+
+
+def generate_tags_from_messages(
+    messages: list[dict], prompt_text: str = "", diagnostic_name: str = "tagger"
+) -> tuple[list[str], list[str]]:
+    """Generate request tags from recent conversation history and the pending prompt."""
+    prompt_seed_tags = normalize_tags(infer_tags_from_text(prompt_text, max_tags=4))
+
+    client, model = get_anthropic_client()
+    if not client:
+        if is_diagnostic_mode():
+            save_diagnostic("no client available for tagger", diagnostic_name)
+        return prompt_seed_tags, prompt_seed_tags
+
+    recent_messages = messages[-12:] if messages else []
+    template = load_template("tagger.txt")
+    prompt = template.format(
+        conversation=json.dumps(recent_messages, indent=2, ensure_ascii=False),
+        prompt=prompt_text,
+    )
+
+    response = client.messages.create(
+        model=model, max_tokens=1024, messages=[{"role": "user", "content": prompt}]
+    )
+
+    response_text_parts = []
+    for block in response.content:
+        block_type = getattr(block, "type", None)
+        if block_type == "text":
+            response_text_parts.append(block.text)
+
+    response_text = "".join(response_text_parts)
+
+    if is_diagnostic_mode():
+        save_diagnostic(
+            f"# PROMPT\n{prompt}\n\n{'=' * 80}\n\n# RESPONSE\n{response_text}\n",
+            diagnostic_name,
+        )
+
+    if not response_text:
+        return prompt_seed_tags, prompt_seed_tags
+
+    if "```json" in response_text:
+        start = response_text.find("```json") + 7
+        end = response_text.find("```", start)
+        json_text = response_text[start:end].strip()
+    elif "```" in response_text:
+        start = response_text.find("```") + 3
+        end = response_text.find("```", start)
+        json_text = response_text[start:end].strip()
+    else:
+        json_text = response_text.strip()
+
+    try:
+        parsed = json.loads(json_text)
+    except json.JSONDecodeError:
+        return prompt_seed_tags, prompt_seed_tags
+
+    llm_tags: list[str] = []
+    if isinstance(parsed, list):
+        llm_tags = [t for t in parsed if isinstance(t, str)]
+    elif isinstance(parsed, dict) and "tags" in parsed:
+        llm_tags = [t for t in parsed.get("tags", []) if isinstance(t, str)]
+
+    combined = normalize_tags(prompt_seed_tags + llm_tags, max_tags=6)
+    combined = combined or prompt_seed_tags
+    return combined, prompt_seed_tags
+
+
+async def extract_keypoints(
+    messages: list[dict], playbook: dict, diagnostic_name: str = "reflection"
+) -> dict:
+    client, model = get_anthropic_client()
+    if not client:
+        if is_diagnostic_mode():
+            save_diagnostic("no client available for reflection", diagnostic_name)
         return {"new_key_points": [], "evaluations": []}
 
     template = load_template("reflection.txt")
@@ -267,8 +544,6 @@ async def extract_keypoints(
         trajectories=json.dumps(messages, indent=2, ensure_ascii=False),
         playbook=json.dumps(playbook_dict, indent=2, ensure_ascii=False),
     )
-
-    client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
 
     response = client.messages.create(
         model=model, max_tokens=4096, messages=[{"role": "user", "content": prompt}]

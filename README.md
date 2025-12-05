@@ -6,6 +6,7 @@ A simplified implementation of Agentic Context Engineering (ACE) for Claude Code
 
 - **Automatic Key Point Extraction**: Learns from reasoning trajectories and extracts valuable insights
 - **Score-Based Filtering**: Evaluates key points across trajectories and removes unhelpful ones
+- **Tag-Aware Retrieval**: Assigns tags to key points and injects the highest-scoring, tag-matched items for each prompt
 - **Context Injection**: Automatically injects accumulated knowledge at the start of new sessions
 - **Multiple Triggers**: Works on session end, manual clear (`/clear`), and context compaction
 
@@ -60,8 +61,9 @@ The system uses three types of hooks:
    - Helpful: +1 point
    - Harmful: -3 points
    - Neutral: -1 point
-4. **Pruning**: Key points with score ≤ -5 are automatically removed
-5. **Injection**: Surviving key points are injected into new sessions
+4. **Tagging**: Each key point is stored with concise tags for topical retrieval
+5. **Pruning**: Key points with score ≤ -5 are automatically removed
+6. **Injection**: For each prompt, conversation history is tagged and the highest-scoring matching key points are injected
 
 ## Configuration
 
