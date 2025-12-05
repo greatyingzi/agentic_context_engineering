@@ -1,5 +1,5 @@
 # Task
-Extract key points from reasoning trajectories and evaluate existing playbook key points.
+Extract key points from reasoning trajectories, classify them with concise tags, and evaluate existing playbook key points.
 
 # Reasoning Trajectories
 {trajectories}
@@ -13,9 +13,11 @@ Extract key points from reasoning trajectories and evaluate existing playbook ke
    - Successful solutions and patterns
    - User preferences and habits
 
-2. Extract NEW key points from the reasoning trajectories that are NOT already in the Current Playbook
+2. Extract NEW key points from the reasoning trajectories that are NOT already in the Current Playbook.
 
-3. Evaluate EACH existing playbook key point based on the reasoning trajectories:
+3. For each NEW key point, include 2-5 concise, lowercase tags that describe the topic, technology, or intent (e.g., ["python", "api", "testing"]).
+
+4. Evaluate EACH existing playbook key point based on the reasoning trajectories:
    - "helpful": key point was useful and applied correctly
    - "harmful": key point caused issues or provided wrong guidance
    - "neutral": key point was not relevant
@@ -23,8 +25,8 @@ Extract key points from reasoning trajectories and evaluate existing playbook ke
 # Output Format
 {{
   "new_key_points": [
-    "First key point extracted from the reasoning trajectories",
-    "Second key point extracted from the reasoning trajectories"
+    {{"text": "First key point extracted from the reasoning trajectories", "tags": ["python", "api"]}},
+    {{"text": "Second key point extracted from the reasoning trajectories", "tags": ["testing"]}}
   ],
   "evaluations": [
     {{"name": "kpt_001", "rating": "helpful"}},

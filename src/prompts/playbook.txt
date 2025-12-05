@@ -1,7 +1,8 @@
 # Playbook
 
-The following key points were learned from previous sessions:
+The following high-scoring, tag-matched key points were selected for this request.
+Request tags: {tags}
 
 {key_points}
 
-Use these key points to improve your responses.
+Use these key points to improve your responses and keep them in mind while reasoning.

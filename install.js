@@ -65,7 +65,7 @@ function mergeSettings(srcSettingsPath) {
       };
       
       for (const [placeholder, scriptName] of Object.entries(hooks)) {
-        const command = `python3 "${path.join(hooksDir, scriptName)}"`;
+        const command = `~/.claude/.venv/bin/python3 "${path.join(hooksDir, scriptName)}"`;
         content = content.replace(
           new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'),
           JSON.stringify(command).slice(1, -1)

@@ -6,28 +6,47 @@ from common import (
     format_playbook,
     is_diagnostic_mode,
     save_diagnostic,
-    is_first_message,
-    mark_session,
+    load_transcript,
+    generate_tags_from_messages,
+    select_relevant_keypoints,
 )
 
 
 def main():
     input_data = json.load(sys.stdin)
     session_id = input_data.get("session_id", "unknown")
-
-    if not is_first_message(session_id):
-        print(json.dumps({}), flush=True)
-        sys.exit(0)
+    prompt_text = input_data.get("prompt", "")
+    transcript_path = input_data.get("transcript_path")
 
     playbook = load_playbook()
-    context = format_playbook(playbook)
+
+    messages = []
+    if transcript_path:
+        try:
+            messages = load_transcript(transcript_path)
+        except Exception:
+            messages = []
+
+    tags, prompt_tags = generate_tags_from_messages(messages, prompt_text)
+    selected_key_points = select_relevant_keypoints(
+        playbook, tags, limit=6, prompt_tags=prompt_tags
+    )
+    context = format_playbook(playbook, key_points=selected_key_points, tags=tags)
 
     if not context:
         print(json.dumps({}), flush=True)
         sys.exit(0)
 
     if is_diagnostic_mode():
-        save_diagnostic(context, "user_prompt_inject")
+        diagnostic_payload = {
+            "session_id": session_id,
+            "prompt": prompt_text,
+            "tags": tags,
+            "prompt_tags": prompt_tags,
+            "selected": [kp.get("name") for kp in selected_key_points],
+            "context": context,
+        }
+        save_diagnostic(json.dumps(diagnostic_payload, indent=2, ensure_ascii=False), "user_prompt_inject")
 
     response = {
         "hookSpecificOutput": {
@@ -38,8 +57,6 @@ def main():
 
     sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(response), flush=True)
-
-    mark_session(session_id)
 
 
 if __name__ == "__main__":
