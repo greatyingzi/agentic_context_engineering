@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { spawnSync } = require('child_process');
 
 // Color output helpers
 const colors = {
@@ -22,6 +23,8 @@ const homeDir = os.homedir();
 const claudeDir = path.join(homeDir, '.claude');
 const hooksDir = path.join(claudeDir, 'hooks');
 const settingsPath = path.join(claudeDir, 'settings.json');
+const venvPath = path.join(claudeDir, '.venv');
+const venvPython = path.join(venvPath, 'bin', 'python3');
 const sourceDir = path.join(__dirname, 'src');
 
 // Ensure directory exists
@@ -65,7 +68,7 @@ function mergeSettings(srcSettingsPath) {
       };
       
       for (const [placeholder, scriptName] of Object.entries(hooks)) {
-        const command = `~/.claude/.venv/bin/python3 "${path.join(hooksDir, scriptName)}"`;
+        const command = `${venvPython} "${path.join(hooksDir, scriptName)}"`;
         content = content.replace(
           new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'),
           JSON.stringify(command).slice(1, -1)
@@ -137,6 +140,32 @@ function saveSettings(settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
 
+// Run a command; return true if exit 0
+function run(cmd, args, opts = {}) {
+  const res = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
+  return res.status === 0;
+}
+
+// Ensure uv venv exists and anthropic is installed
+function ensureVenvAndDeps() {
+  const uvExists = run('uv', ['--version'], { stdio: 'ignore' });
+  if (!uvExists) {
+    log('⚠ uv not found; please install uv or create the venv manually.', 'yellow');
+    return;
+  }
+
+  if (!fs.existsSync(venvPath)) {
+    log(`ℹ Creating venv at ${venvPath} via uv...`, 'blue');
+    if (!run('uv', ['venv', venvPath])) {
+      log('⚠ Failed to create venv with uv.', 'yellow');
+      return;
+    }
+  }
+
+  log('ℹ Ensuring anthropic is installed in the venv via uv...', 'blue');
+  run('uv', ['pip', 'install', 'anthropic']);
+}
+
 // Main installation function
 function install() {
   log('\n=== Agentic Context Engineering Installation ===\n', 'blue');
@@ -153,6 +182,9 @@ function install() {
     log(`ℹ Copying files to ${claudeDir}...`, 'blue');
     copyDir(sourceDir, claudeDir);
     log('✓ Files copied to ~/.claude/', 'green');
+
+    // Step 3: Create venv and install deps with uv if available
+    ensureVenvAndDeps();
 
     // Step 3: Merge settings.json
     log('ℹ Merging settings.json...', 'blue');

@@ -28,8 +28,13 @@ cd agentic_context_engineering
 npm install
 ```
 
-2. Install required Python package:
+2. Install required Python package (recommend uv):
 ```bash
+# with uv
+uv venv ~/.claude/.venv
+uv pip install anthropic
+
+# or with pip
 pip3 install anthropic
 ```
 
