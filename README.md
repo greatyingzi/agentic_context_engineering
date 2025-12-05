@@ -90,7 +90,15 @@ By default, the system does **not** update the playbook when using `/exit`. You 
 }
 ```
 
-When enabled, using `/exit` will trigger playbook updates. Otherwise, using `/exit` will exit the session without affecting the accumulated knowledge. Other session end triggers (natural session end, context compaction) will still update the playbook regardless of this setting.
+### `/clear` Command Behavior
+
+By default, the system does **not** update the playbook when using `/clear`. You can enable this behavior by setting `playbook_update_on_clear` to `true` in your `~/.claude/settings.json`:
+
+```json
+{
+  "playbook_update_on_clear": true
+}
+```
 
 ### Customizing Prompts
 
