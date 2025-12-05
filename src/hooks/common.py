@@ -232,7 +232,15 @@ async def extract_keypoints(
     if not ANTHROPIC_AVAILABLE:
         return {"new_key_points": [], "evaluations": []}
 
-    model = os.getenv("AGENTIC_CONTEXT_MODEL")
+    settings = load_settings()
+
+    model = (
+        os.getenv("AGENTIC_CONTEXT_MODEL")
+        or settings.get("model")
+        or os.getenv("ANTHROPIC_MODEL")
+        or os.getenv("ANTHROPIC_DEFAULT_SONNET_MODEL")
+        or "claude-sonnet-4-5-20250929"
+    )
     if not model:
         return {"new_key_points": [], "evaluations": []}
 
