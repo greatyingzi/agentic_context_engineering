@@ -1,169 +1,153 @@
 # Agentic Context Engineering
 
-A simplified implementation of Agentic Context Engineering (ACE) for Claude Code that automatically learns and accumulates key points from reasoning trajectories.
+[中文](README.zh.md) | English
 
-## Features
+Agentic Context Engineering (ACE) - An intelligent knowledge accumulation and context injection system designed for Claude Code.
 
-- **Automatic Key Point Extraction**: Learns from reasoning trajectories and extracts valuable insights
-- **Score-Based Filtering & Merging**: Evaluates key points across trajectories, merges near-duplicate KPTs (LLM-driven, ≥80% semantic similarity) while summing their scores, and removes unhelpful ones
-- **Tag-Aware Retrieval**: Assigns tags to key points and injects the highest-scoring, tag-matched items for each prompt
-- **Context Injection**: Automatically injects accumulated knowledge at the start of new sessions
-- **Multiple Triggers**: Works on session end, manual clear (`/clear`), and context compaction
+Automatically extracts, evaluates, and integrates key insights from conversation trajectories to enable continuous knowledge evolution and intelligent injection.
 
-## Installation
+## ✨ Core Value
 
-### Prerequisites
+- **Zero-Friction Learning**: Automatically extracts valuable insights from conversations without manual maintenance
+- **Intelligent Evaluation**: Dynamically scores based on actual effectiveness, retaining valuable knowledge while eliminating irrelevant content
+- **Precision Injection**: Intelligently matches relevant knowledge based on conversation topics to enhance Claude Code's response quality
+- **Continuous Evolution**: Avoids duplication through semantic similarity merging (≥80%) and continuously optimizes through scoring mechanism
 
-- Python 3.8+
-- Claude Code
-- [anthropic](https://github.com/anthropics/anthropic-sdk-python) Python SDK
-- Node.js and npm
+## 🚀 Quick Start
 
-### Setup
+### Installation
 
-1. Clone and install:
 ```bash
-git clone https://github.com/bluenoah1991/agentic_context_engineering.git
+git clone https://github.com/greatyingzi/agentic_context_engineering.git
 cd agentic_context_engineering
 npm install
 ```
 
-2. Install required Python package (recommend uv):
+### Environment Setup
+
 ```bash
-# with uv
+# Install dependencies (uv recommended)
 uv venv ~/.claude/.venv
 uv pip install --python ~/.claude/.venv/bin/python3 anthropic
 
-# or with pip
-pip3 install anthropic
+# Configure API (optional, supports fallback)
+export AGENTIC_CONTEXT_API_KEY="your-api-key"
+export AGENTIC_CONTEXT_MODEL="claude-3-5-sonnet-20241022"
 ```
 
-3. Set environment variables for the LLM API:
+### Activate System
 
-| Environment Variable | Description | Required |
-|---------------------|-------------|----------|
-| `AGENTIC_CONTEXT_MODEL` | Model name for key point extraction (fallback: `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `claude-sonnet-4-5-20250929`) | Optional |
-| `AGENTIC_CONTEXT_API_KEY` | API key (fallback: `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`) | Optional |
-| `AGENTIC_CONTEXT_BASE_URL` | API base URL (fallback: `ANTHROPIC_BASE_URL`) | Optional |
+Restart Claude Code and the system will automatically take effect across all projects.
 
-4. Restart Claude Code - hooks will be active across all your projects
+## 🏗️ System Architecture
 
-## How It Works
+### Core Hook Mechanism
 
-### Hooks
+The system achieves full automation through three key hooks:
 
-The system uses three types of hooks:
+1. **UserPromptSubmit** - Intelligently injects relevant knowledge at the start of new sessions
+2. **SessionEnd** - Extracts and evaluates insights when sessions end
+3. **PreCompact** - Protects important knowledge before context compaction
 
-1. **UserPromptSubmit**: Injects accumulated key points at the start of each new session
-2. **SessionEnd**: Extracts key points when a session ends
-3. **PreCompact**: Extracts key points before context compaction
+### Knowledge Lifecycle
 
-### Key Point Lifecycle
+```
+Extract → Evaluate → Score → Merge → Tag → Clean → Inject
+```
 
-1. **Extraction**: At the end of each session, the system analyzes the reasoning trajectories and extracts new key points
-2. **Evaluation**: Existing key points are evaluated based on the reasoning trajectories and rated as helpful/harmful/neutral
-3. **Scoring**: 
-   - Helpful: +1 point
-   - Harmful: -3 points
-   - Neutral: -1 point
-4. **Merging**: During reflection, the LLM clusters existing + pending + new candidates; only items with semantic similarity ≥80% are merged. Merged KPT scores are summed (positive/negative), tags deduped, and pending items “graduate” to stable.
-5. **Tagging**: Each key point is stored with concise tags for topical retrieval
-6. **Pruning**: Key points with score ≤ -5 are automatically removed
-7. **Renumbering**: After updates, KPT names are compacted sequentially (`kpt_001`, `kpt_002`, …).
-8. **Injection**: For each prompt, conversation history is tagged and the highest-scoring matching key points are injected
+- **Scoring Mechanism**: Helpful +1, Harmful -3, Neutral 0
+- **Intelligent Merging**: Semantic similarity ≥80% auto-merge with score accumulation
+- **Auto Cleanup**: Items with score ≤ -5 automatically removed
+- **Precise Tagging**: Each knowledge point tagged for accurate topic matching
 
-### Playbook Layout
+### Data Flow Architecture
 
-- Stable KPTs are listed first; pending KPTs (if any) are separated by a divider line in `.claude/playbook.json`. Stable items omit the `pending` field; pending items carry `"pending": true`.
+```
+Conversation Trajectory → Feature Extraction → LLM Analysis → Knowledge Storage → Intelligent Injection → Enhanced Response
+```
 
-### Prompts
+## 📋 Advanced Features
 
-- Runtime prompt files live under `~/.claude/prompts/` (not the repo copy):
-  - `reflection.txt`: extraction/merge + evaluation template (≥80% similarity required to merge).
-  - `playbook.txt`: injection template.
+### `/init-playbook` - Batch Historical Knowledge Extraction
 
-## Init Playbook Command
+Batch extract insights from historical conversations to quickly build knowledge base:
 
-Use `/init-playbook` to replay historical transcripts and build `.claude/playbook.json` for the current project.
+```bash
+/init-playbook
+```
 
-- Command file is installed to `~/.claude/commands/init-playbook.md`.
-- Helper script `bootstrap_playbook.py` is installed to `~/.claude/scripts/` (override via `ACE_BOOTSTRAP_SCRIPT`).
-- Secrets: put `AGENTIC_CONTEXT_API_KEY`, `AGENTIC_CONTEXT_BASE_URL`, `AGENTIC_CONTEXT_MODEL` (or `ANTHROPIC_*`) in `~/.claude/env` (KEY=VAL, one per line) or export in your shell; the Python script auto-loads and normalizes them.
-- Defaults: `--order oldest`, `--limit 200`; history dir auto-derives from project path (`~/.claude/projects/-<project-path>`). Override with `ACE_HISTORY_DIR`, `ACE_INIT_LIMIT`, `ACE_INIT_ORDER`, `ACE_INIT_FORCE` (start fresh).
-- One-liner to run (no extra env wiring needed if `~/.claude/env` is set):
-  ```
-  "$HOME/.claude/.venv/bin/python3" "${ACE_BOOTSTRAP_SCRIPT:-$HOME/.claude/scripts/bootstrap_playbook.py}" \
-    --history-dir "${ACE_HISTORY_DIR:-$HOME/.claude/projects/$(echo "${CLAUDE_PROJECT_DIR:-$(pwd)}" | sed 's#/#-#g')}" \
-    --project-dir "${CLAUDE_PROJECT_DIR:-$(pwd)}" \
-    --limit "${ACE_INIT_LIMIT:-200}" \
-    --order "${ACE_INIT_ORDER:-oldest}" \
-    ${ACE_INIT_FORCE:+--force}
-  ```
-- Logs: `./.claude/diagnostic/command_trace.log` and `~/.claude/diagnostic/command_trace.log`.
-
-## Configuration
+- Automatically identifies project history records
+- Defaults to processing last 200 conversations
+- Supports custom parameters via environment variables
 
 ### Diagnostic Mode
 
-To enable detailed logging of LLM interactions:
+Enable detailed logging:
 
 ```bash
-touch .claude/diagnostic_mode
+touch .claude/diagnostic_mode  # Enable
+rm .claude/diagnostic_mode      # Disable
 ```
 
-Diagnostic logs will be saved to `.claude/diagnostic/` with timestamped filenames.
+### Behavior Configuration
 
-To disable:
-```bash
-rm .claude/diagnostic_mode
-```
-
-### `/exit` Command Behavior
-
-By default, the system does **not** update the playbook when using `/exit`. You can enable this behavior by setting `playbook_update_on_exit` to `true` in your `~/.claude/settings.json`:
+Customize in `~/.claude/settings.json`:
 
 ```json
 {
-  "playbook_update_on_exit": true
+  "playbook_update_on_exit": true,   # Update knowledge base on /exit
+  "playbook_update_on_clear": true   # Update knowledge base on /clear
 }
 ```
 
-### `/clear` Command Behavior
-
-By default, the system does **not** update the playbook when using `/clear`. You can enable this behavior by setting `playbook_update_on_clear` to `true` in your `~/.claude/settings.json`:
-
-```json
-{
-  "playbook_update_on_clear": true
-}
-```
-
-### Customizing Prompts
-
-Prompts are located in `~/.claude/prompts/`:
-
-- `reflection.txt`: Template for key point extraction from reasoning trajectories
-- `playbook.txt`: Template for injecting key points into sessions
-
-## File Structure
+## 📁 Directory Structure
 
 ```
 .
-├── install.js                 # Installation script
-├── package.json               # npm package configuration
+├── install.js                 # Global installation script
+├── package.json               # npm configuration
 ├── src/
-│   ├── hooks/
-│   │   ├── common.py           # Shared utilities
-│   │   ├── session_end.py      # SessionEnd hook
-│   │   ├── precompact.py       # PreCompact hook
-│   │   └── user_prompt_inject.py  # UserPromptSubmit hook
-│   ├── prompts/
-│   │   ├── reflection.txt      # Key point extraction template
-│   │   └── playbook.txt        # Injection template
-│   └── settings.json           # Hook configuration template
+│   ├── hooks/                 # Core hook implementations
+│   │   ├── common.py          # Shared utilities
+│   │   ├── session_end.py     # Session end handler
+│   │   ├── precompact.py      # Context compaction handler
+│   │   └── user_prompt_inject.py  # Knowledge injection
+│   ├── prompts/               # LLM prompt templates
+│   │   ├── reflection.txt     # Knowledge extraction template
+│   │   └── playbook.txt       # Knowledge injection template
+│   ├── commands/              # Custom commands
+│   │   └── init-playbook.md   # /init-playbook command
+│   ├── scripts/               # Helper scripts
+│   │   └── bootstrap_playbook.py  # Knowledge base initialization
+│   └── settings.json          # Configuration template
 └── README.md
 ```
 
-## License
+## 🔧 Tech Stack
 
-MIT
+- **Python** - Core logic and hook implementation
+- **Node.js** - Installation and deployment automation
+- **Anthropic Claude API** - Intelligent analysis engine
+- **JSON** - Lightweight knowledge storage
+
+## 🎯 Design Philosophy
+
+ACE follows the "Elegant Automation" principle:
+
+- **Non-Intrusive**: Fully leverages Claude Code's native hook mechanism
+- **Intelligent Adaptation**: Continuously optimizes knowledge quality based on actual effectiveness
+- **Lightweight & Efficient**: JSON storage with minimal performance overhead
+- **Progressive Enhancement**: Builds knowledge system from scratch gradually
+
+## 📈 Impact
+
+After using ACE, Claude Code will:
+
+- Understand project-specific requirements and context faster
+- Avoid repetitive errors and suggestions
+- Provide more precise code and architecture recommendations
+- Remember project-specific development patterns and preferences
+
+## 📄 License
+
+MIT License
