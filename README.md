@@ -5,7 +5,7 @@ A simplified implementation of Agentic Context Engineering (ACE) for Claude Code
 ## Features
 
 - **Automatic Key Point Extraction**: Learns from reasoning trajectories and extracts valuable insights
-- **Score-Based Filtering**: Evaluates key points across trajectories and removes unhelpful ones
+- **Score-Based Filtering & Merging**: Evaluates key points across trajectories, merges near-duplicate KPTs (LLM-driven, ≥80% semantic similarity) while summing their scores, and removes unhelpful ones
 - **Tag-Aware Retrieval**: Assigns tags to key points and injects the highest-scoring, tag-matched items for each prompt
 - **Context Injection**: Automatically injects accumulated knowledge at the start of new sessions
 - **Multiple Triggers**: Works on session end, manual clear (`/clear`), and context compaction
@@ -66,9 +66,21 @@ The system uses three types of hooks:
    - Helpful: +1 point
    - Harmful: -3 points
    - Neutral: -1 point
-4. **Tagging**: Each key point is stored with concise tags for topical retrieval
-5. **Pruning**: Key points with score ≤ -5 are automatically removed
-6. **Injection**: For each prompt, conversation history is tagged and the highest-scoring matching key points are injected
+4. **Merging**: During reflection, the LLM clusters existing + pending + new candidates; only items with semantic similarity ≥80% are merged. Merged KPT scores are summed (positive/negative), tags deduped, and pending items “graduate” to stable.
+5. **Tagging**: Each key point is stored with concise tags for topical retrieval
+6. **Pruning**: Key points with score ≤ -5 are automatically removed
+7. **Renumbering**: After updates, KPT names are compacted sequentially (`kpt_001`, `kpt_002`, …).
+8. **Injection**: For each prompt, conversation history is tagged and the highest-scoring matching key points are injected
+
+### Playbook Layout
+
+- Stable KPTs are listed first; pending KPTs (if any) are separated by a divider line in `.claude/playbook.json`. Stable items omit the `pending` field; pending items carry `"pending": true`.
+
+### Prompts
+
+- Runtime prompt files live under `~/.claude/prompts/` (not the repo copy):
+  - `reflection.txt`: extraction/merge + evaluation template (≥80% similarity required to merge).
+  - `playbook.txt`: injection template.
 
 ## Configuration
 

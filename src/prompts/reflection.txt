@@ -4,8 +4,11 @@ Extract key points from reasoning trajectories, classify them with concise tags,
 # Reasoning Trajectories
 {trajectories}
 
-# Current Playbook
-{playbook}
+# Current Playbook (existing, above divider)
+{existing_playbook}
+
+# Pending / new key points (below divider)
+{pending_playbook}
 
 # Instructions
 1. Key points should have reference value for the future, such as:
@@ -13,20 +16,36 @@ Extract key points from reasoning trajectories, classify them with concise tags,
    - Successful solutions and patterns
    - User preferences and habits
 
-2. Extract NEW key points from the reasoning trajectories that are NOT already in the Current Playbook.
+2. From the Reasoning Trajectories, derive NEW candidate points that are NOT already covered.
 
-3. For each NEW key point, include 2-5 concise, lowercase tags that describe the topic, technology, or intent (e.g., ["python", "api", "testing"]).
+3. Normalize → cluster → merge across BOTH sets (existing + pending + new candidates):
+   - For any potential cluster, have the model estimate semantic similarity; merge only when similarity is ≥ 0.8 (80%). If < 0.8, keep as separate items.
+   - Cluster items that share the same actor/subject + goal/action + outcome/constraint, or are paraphrases/near-synonyms answering the same “what to do/avoid and why”.
+   - For each admitted cluster, merge all unique details into ONE canonical, action-oriented sentence (≤180 characters). Never emit multiple near-duplicates.
+   - Examples:
+     - Input cluster: "Use retries for flaky API calls" + "For unstable endpoints, add retry with backoff" → Output: "Use retry with backoff for flaky/unstable API endpoints to reduce transient failures."
+     - Input cluster: "Cache expensive queries" + "Memoize repeated DB reads" → Output: "Cache/memoize expensive, repeated DB queries to cut latency and load."
 
-4. Evaluate EACH existing playbook key point based on the reasoning trajectories:
+4. Cross-check with the Current Playbook:
+   - If a candidate’s meaning is already present, skip it unless you add genuinely new nuance.
+   - When nuance exists, merge it into a single line rather than adding a duplicate entry.
+
+5. Keep only compact, self-contained sentences; avoid fluff, hedging, or multi-sentence items.
+
+6. For each merged key point, include:
+   - 2-5 concise, lowercase tags that describe the topic, technology, or intent (e.g., ["python", "api", "testing"]); deduplicate tags.
+   - sources: the list of original key point names that were merged (may include existing and pending names). Keep this list concise.
+
+7. Evaluate EACH existing playbook key point based on the reasoning trajectories:
    - "helpful": key point was useful and applied correctly
    - "harmful": key point caused issues or provided wrong guidance
    - "neutral": key point was not relevant
 
 # Output Format
 {{
-  "new_key_points": [
-    {{"text": "First key point extracted from the reasoning trajectories", "tags": ["python", "api"]}},
-    {{"text": "Second key point extracted from the reasoning trajectories", "tags": ["testing"]}}
+  "merged_key_points": [
+    {{"text": "Canonical merged key point", "tags": ["python", "api"], "sources": ["kpt_001", "kpt_042"]}},
+    {{"text": "Another canonical merged key point", "tags": ["testing"], "sources": ["pending_kpt_003"]}}
   ],
   "evaluations": [
     {{"name": "kpt_001", "rating": "helpful"}},

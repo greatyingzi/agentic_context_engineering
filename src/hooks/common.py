@@ -166,6 +166,9 @@ def load_playbook() -> dict:
     if not playbook_path.exists():
         return {"version": "1.0", "last_updated": None, "key_points": []}
 
+    def _is_divider(entry: object) -> bool:
+        return isinstance(entry, dict) and entry.get("divider") is True
+
     try:
         with open(playbook_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -177,11 +180,14 @@ def load_playbook() -> dict:
         existing_names = set()
 
         for item in data["key_points"]:
+            if _is_divider(item):
+                continue
             if isinstance(item, str):
                 keypoint = {
                     "name": generate_keypoint_name(existing_names),
                     "text": item,
                     "score": 0,
+                    "pending": False,
                 }
             elif isinstance(item, dict):
                 keypoint = dict(item)
@@ -189,6 +195,8 @@ def load_playbook() -> dict:
                     keypoint["name"] = generate_keypoint_name(existing_names)
                 if "score" not in keypoint:
                     keypoint["score"] = 0
+                if "pending" not in keypoint:
+                    keypoint["pending"] = False
             else:
                 continue
 
@@ -209,10 +217,36 @@ def load_playbook() -> dict:
 def save_playbook(playbook: dict):
     playbook["last_updated"] = datetime.now().isoformat()
     playbook_path = get_project_dir() / ".claude" / "playbook.json"
-
     playbook_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Insert a visual divider between stable items and pending ones for readability.
+    existing = [kp for kp in playbook.get("key_points", []) if not kp.get("pending")]
+    pending = [kp for kp in playbook.get("key_points", []) if kp.get("pending")]
+
+    def _serialize_kp(kp: dict, force_pending: bool = False) -> dict:
+        item = dict(kp)
+        is_pending = bool(item.get("pending")) or force_pending
+        if is_pending:
+            item["pending"] = True
+        else:
+            item.pop("pending", None)
+        return item
+
+    serialized_keypoints = [_serialize_kp(kp) for kp in existing]
+    if pending:
+        serialized_keypoints.append(
+            {
+                "divider": True,
+                "text": "--- pending key points below ---",
+            }
+        )
+        serialized_keypoints.extend(_serialize_kp(kp, force_pending=True) for kp in pending)
+
+    payload = dict(playbook)
+    payload["key_points"] = serialized_keypoints
+
     with open(playbook_path, "w", encoding="utf-8") as f:
-        json.dump(playbook, f, indent=2, ensure_ascii=False)
+        json.dump(payload, f, indent=2, ensure_ascii=False)
 
 
 def format_playbook(
@@ -236,47 +270,125 @@ def format_playbook(
 
 
 def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
+    merged_key_points = extraction_result.get("merged_key_points")
     new_key_points = extraction_result.get("new_key_points", [])
     evaluations = extraction_result.get("evaluations", [])
-
-    existing_names = {kp["name"] for kp in playbook["key_points"]}
-    existing_texts = {kp["text"] for kp in playbook["key_points"]}
-
-    for item in new_key_points:
-        if isinstance(item, str):
-            text = item
-            tags = []
-        elif isinstance(item, dict):
-            text = item.get("text", "")
-            tags = normalize_tags(item.get("tags", []))
-        else:
-            continue
-
-        if not text or text in existing_texts:
-            continue
-
-        name = generate_keypoint_name(existing_names)
-        playbook["key_points"].append(
-            {
-                "name": name,
-                "text": text,
-                "score": 0,
-                "tags": tags or infer_tags_from_text(text),
-            }
-        )
-        existing_names.add(name)
-        existing_texts.add(text)
 
     rating_delta = {"helpful": 1, "harmful": -3, "neutral": -1}
     name_to_kp = {kp["name"]: kp for kp in playbook["key_points"]}
 
+    # Apply evaluations first so scores are updated before merges.
     for eval_item in evaluations:
         name = eval_item.get("name", "")
         rating = eval_item.get("rating", "neutral")
-
         if name in name_to_kp:
             name_to_kp[name]["score"] += rating_delta.get(rating, 0)
 
+    if merged_key_points is not None:
+        existing_names = {kp["name"] for kp in playbook["key_points"]}
+        text_index = {kp.get("text", ""): kp for kp in playbook["key_points"]}
+        name_index = {kp["name"]: kp for kp in playbook["key_points"]}
+
+        merged_list = []
+        seen_texts = set()
+        used_names = set()
+
+        for item in merged_key_points or []:
+            if isinstance(item, str):
+                text = item.strip()
+                tags = []
+                sources = []
+            elif isinstance(item, dict):
+                text = (item.get("text") or "").strip()
+                tags = normalize_tags(item.get("tags", []))
+                sources = item.get("sources", []) or []
+            else:
+                continue
+
+            if not text or text in seen_texts:
+                continue
+
+            matched_sources = []
+            for source_name in sources:
+                if source_name in name_index:
+                    matched_sources.append(name_index[source_name])
+                    used_names.add(source_name)
+
+            source_kp = matched_sources[0] if matched_sources else text_index.get(text)
+
+            if matched_sources:
+                total_score = sum(kp.get("score", 0) for kp in matched_sources)
+                fallback_tags = next((kp.get("tags", []) for kp in matched_sources if kp.get("tags")), [])
+            elif source_kp:
+                total_score = source_kp.get("score", 0)
+                fallback_tags = source_kp.get("tags", [])
+                used_names.add(source_kp["name"])
+            else:
+                total_score = 0
+                fallback_tags = []
+
+            name = source_kp["name"] if source_kp else generate_keypoint_name(existing_names)
+
+            if any(kp.get("name") == name for kp in merged_list):
+                name = generate_keypoint_name(existing_names)
+
+            merged_list.append(
+                {
+                    "name": name,
+                    "text": text,
+                    "score": total_score,
+                    "tags": tags or normalize_tags(fallback_tags) or infer_tags_from_text(text),
+                    "pending": False,
+                }
+            )
+            seen_texts.add(text)
+            existing_names.add(name)
+
+        # Preserve any existing items that were not part of the merged output.
+        for kp in playbook.get("key_points", []):
+            name = kp.get("name")
+            text = kp.get("text", "")
+            if name in used_names:
+                continue
+            if text in seen_texts:
+                continue
+            merged_list.append(kp)
+            seen_texts.add(text)
+
+        playbook["key_points"] = merged_list
+
+    else:
+        # Backward compatibility: treat returned new_key_points as pending additions.
+        existing_names = {kp["name"] for kp in playbook["key_points"]}
+        existing_texts = {kp["text"] for kp in playbook["key_points"]}
+
+        for item in new_key_points:
+            if isinstance(item, str):
+                text = item
+                tags = []
+            elif isinstance(item, dict):
+                text = item.get("text", "")
+                tags = normalize_tags(item.get("tags", []))
+            else:
+                continue
+
+            if not text or text in existing_texts:
+                continue
+
+            name = generate_keypoint_name(existing_names)
+            playbook["key_points"].append(
+                {
+                    "name": name,
+                    "text": text,
+                    "score": 0,
+                    "tags": tags or infer_tags_from_text(text),
+                    "pending": True,
+                }
+            )
+            existing_names.add(name)
+            existing_texts.add(text)
+
+    # Drop low-score items.
     playbook["key_points"] = [
         kp for kp in playbook["key_points"] if kp.get("score", 0) > -5
     ]
@@ -287,6 +399,10 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
             playbook["key_points"],
             key=lambda kp: (-kp.get("score", 0), kp.get("name", "")),
         )[:MAX_KEYPOINTS]
+
+    # Renumber key points sequentially to keep identifiers compact.
+    for idx, kp in enumerate(playbook["key_points"], start=1):
+        kp["name"] = f"kpt_{idx:03d}"
 
     return playbook
 
@@ -534,15 +650,25 @@ async def extract_keypoints(
 
     template = load_template("reflection.txt")
 
-    playbook_dict = (
-        {kp["name"]: kp["text"] for kp in playbook["key_points"]}
+    existing_playbook = (
+        {kp["name"]: kp["text"] for kp in playbook["key_points"] if not kp.get("pending")}
+        if playbook["key_points"]
+        else {}
+    )
+    pending_playbook = (
+        {kp["name"]: kp["text"] for kp in playbook["key_points"] if kp.get("pending")}
         if playbook["key_points"]
         else {}
     )
 
     prompt = template.format(
         trajectories=json.dumps(messages, indent=2, ensure_ascii=False),
-        playbook=json.dumps(playbook_dict, indent=2, ensure_ascii=False),
+        existing_playbook=json.dumps(
+            existing_playbook, indent=2, ensure_ascii=False
+        ),
+        pending_playbook=json.dumps(
+            pending_playbook, indent=2, ensure_ascii=False
+        ),
     )
 
     response = client.messages.create(
@@ -583,6 +709,7 @@ async def extract_keypoints(
         return {"new_key_points": [], "evaluations": []}
 
     return {
+        "merged_key_points": result.get("merged_key_points"),
         "new_key_points": result.get("new_key_points", []),
         "evaluations": result.get("evaluations", []),
     }
