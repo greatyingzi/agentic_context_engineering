@@ -22,10 +22,12 @@ function log(msg, color = 'reset') {
 const homeDir = os.homedir();
 const claudeDir = path.join(homeDir, '.claude');
 const hooksDir = path.join(claudeDir, 'hooks');
+const scriptsDir = path.join(claudeDir, 'scripts');
 const settingsPath = path.join(claudeDir, 'settings.json');
 const venvPath = path.join(claudeDir, '.venv');
 const venvPython = path.join(venvPath, 'bin', 'python3');
 const sourceDir = path.join(__dirname, 'src');
+const sourceScriptsDir = path.join(__dirname, 'scripts');
 
 // Ensure directory exists
 function ensureDir(dir) {
@@ -182,6 +184,13 @@ function install() {
     log(`ℹ Copying files to ${claudeDir}...`, 'blue');
     copyDir(sourceDir, claudeDir);
     log('✓ Files copied to ~/.claude/', 'green');
+
+    // Step 2b: Copy helper scripts (e.g., bootstrap_playbook.py) to ~/.claude/scripts
+    if (fs.existsSync(sourceScriptsDir)) {
+      log(`ℹ Copying helper scripts to ${scriptsDir}...`, 'blue');
+      copyDir(sourceScriptsDir, scriptsDir);
+      log('✓ Scripts copied to ~/.claude/scripts', 'green');
+    }
 
     // Step 3: Create venv and install deps with uv if available
     ensureVenvAndDeps();

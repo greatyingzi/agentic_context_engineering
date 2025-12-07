@@ -30,7 +30,7 @@ Extract key points from reasoning trajectories, classify them with concise tags,
    - If a candidate’s meaning is already present, skip it unless you add genuinely new nuance.
    - When nuance exists, merge it into a single line rather than adding a duplicate entry.
 
-5. Keep only compact, self-contained sentences; avoid fluff, hedging, or multi-sentence items.
+5. Keep only compact, self-contained sentences; avoid fluff, hedging, or multi-sentence items. All key point text and tags must be concise English.
 
 6. For each merged key point, include:
    - 2-5 concise, lowercase tags that describe the topic, technology, or intent (e.g., ["python", "api", "testing"]); deduplicate tags.

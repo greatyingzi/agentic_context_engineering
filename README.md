@@ -82,6 +82,25 @@ The system uses three types of hooks:
   - `reflection.txt`: extraction/merge + evaluation template (≥80% similarity required to merge).
   - `playbook.txt`: injection template.
 
+## Init Playbook Command
+
+Use `/init-playbook` to replay historical transcripts and build `.claude/playbook.json` for the current project.
+
+- Command file is installed to `~/.claude/commands/init-playbook.md`.
+- Helper script `bootstrap_playbook.py` is installed to `~/.claude/scripts/` (override via `ACE_BOOTSTRAP_SCRIPT`).
+- Secrets: put `AGENTIC_CONTEXT_API_KEY`, `AGENTIC_CONTEXT_BASE_URL`, `AGENTIC_CONTEXT_MODEL` (or `ANTHROPIC_*`) in `~/.claude/env` (KEY=VAL, one per line) or export in your shell; the Python script auto-loads and normalizes them.
+- Defaults: `--order oldest`, `--limit 200`; history dir auto-derives from project path (`~/.claude/projects/-<project-path>`). Override with `ACE_HISTORY_DIR`, `ACE_INIT_LIMIT`, `ACE_INIT_ORDER`, `ACE_INIT_FORCE` (start fresh).
+- One-liner to run (no extra env wiring needed if `~/.claude/env` is set):
+  ```
+  "$HOME/.claude/.venv/bin/python3" "${ACE_BOOTSTRAP_SCRIPT:-$HOME/.claude/scripts/bootstrap_playbook.py}" \
+    --history-dir "${ACE_HISTORY_DIR:-$HOME/.claude/projects/$(echo "${CLAUDE_PROJECT_DIR:-$(pwd)}" | sed 's#/#-#g')}" \
+    --project-dir "${CLAUDE_PROJECT_DIR:-$(pwd)}" \
+    --limit "${ACE_INIT_LIMIT:-200}" \
+    --order "${ACE_INIT_ORDER:-oldest}" \
+    ${ACE_INIT_FORCE:+--force}
+  ```
+- Logs: `./.claude/diagnostic/command_trace.log` and `~/.claude/diagnostic/command_trace.log`.
+
 ## Configuration
 
 ### Diagnostic Mode

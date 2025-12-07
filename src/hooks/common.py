@@ -274,7 +274,8 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
     new_key_points = extraction_result.get("new_key_points", [])
     evaluations = extraction_result.get("evaluations", [])
 
-    rating_delta = {"helpful": 1, "harmful": -3, "neutral": -1}
+    # Neutral should not penalize score; avoid drift toward deletion on repeated runs.
+    rating_delta = {"helpful": 1, "harmful": -3, "neutral": 0}
     name_to_kp = {kp["name"]: kp for kp in playbook["key_points"]}
 
     # Apply evaluations first so scores are updated before merges.
@@ -285,6 +286,48 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
             name_to_kp[name]["score"] += rating_delta.get(rating, 0)
 
     if merged_key_points is not None:
+        # If the model proposes fewer merged KPTs than existing ones, treat them as additions
+        # instead of replacing the playbook to avoid accidental shrinking.
+        if merged_key_points and len(merged_key_points) < len(playbook.get("key_points", [])):
+            existing_names = {kp["name"] for kp in playbook["key_points"]}
+            existing_texts = {kp.get("text", "") for kp in playbook["key_points"]}
+            name_index = {kp["name"]: kp for kp in playbook["key_points"]}
+
+            for item in merged_key_points:
+                if isinstance(item, str):
+                    text = item.strip()
+                    tags = []
+                    sources = []
+                elif isinstance(item, dict):
+                    text = (item.get("text") or "").strip()
+                    tags = normalize_tags(item.get("tags", []))
+                    sources = item.get("sources", []) or []
+                else:
+                    continue
+
+                if not text or text in existing_texts:
+                    continue
+
+                source_kps = [name_index[s] for s in sources if s in name_index]
+                total_score = sum(kp.get("score", 0) for kp in source_kps)
+                fallback_tags = next(
+                    (kp.get("tags", []) for kp in source_kps if kp.get("tags")), []
+                )
+
+                name = generate_keypoint_name(existing_names)
+                playbook["key_points"].append(
+                    {
+                        "name": name,
+                        "text": text,
+                        "score": total_score,
+                        "tags": tags or normalize_tags(fallback_tags) or infer_tags_from_text(text),
+                        "pending": False,
+                    }
+                )
+                existing_names.add(name)
+                existing_texts.add(text)
+
+        # Rebuild indices after any additions so downstream merge logic has the mappings.
         existing_names = {kp["name"] for kp in playbook["key_points"]}
         text_index = {kp.get("text", ""): kp for kp in playbook["key_points"]}
         name_index = {kp["name"]: kp for kp in playbook["key_points"]}
