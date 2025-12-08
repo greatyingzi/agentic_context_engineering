@@ -2,3 +2,4 @@
 .claude/playbook.json
 .claude/last_session.txt
 .claude/diagnostic/
+**/__pycache__/
