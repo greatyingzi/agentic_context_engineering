@@ -68,6 +68,106 @@ export AGENTIC_CONTEXT_MODEL="claude-3-5-sonnet-20241022"
 
 ## 📋 高级功能
 
+### 典型开发工作流
+
+系统通过智能的Hook机制实现自动化知识管理：
+
+```mermaid
+graph TD
+    A[开始新会话] --> B{检查Hook设置<br/>~/.claude/settings.json}
+    B -->|启用| C[UserPromptSubmit Hook<br/>超时: 10s]
+    B -->|禁用| Z[标准Claude会话]
+
+    %% UserPromptSubmit 流程
+    C --> D{加载会话历史}
+    D -->|成功| E[并行处理开始]
+    D -->|失败| E[并行处理开始]
+
+    subgraph E[并行处理]
+        F[生成标签<br/>LLM分析:<br/>• 当前提示<br/>• 会话历史]
+        G[加载Playbook<br/>知识库]
+    end
+
+    E --> H[选择相关知识<br/>• 标签匹配<br/>• 评分排序<br/>• 最多6项]
+    H --> I{找到知识?}
+    I -->|是| J[格式化上下文注入]
+    I -->|否| Z
+
+    J --> K[注入上下文<br/>增强提示<br/>→ Claude]
+    K --> L[增强的Claude响应]
+
+    %% 主开发循环
+    L --> M[开发工作]
+    M --> N{会话结束?}
+    N -->|否| M
+    N -->|是| O[触发会话结束]
+
+    %% SessionEnd 流程
+    O --> P{检查更新设置<br/>playbook_update_on_exit}
+    P -->|启用| Q[SessionEnd Hook<br/>超时: 120s]
+    P -->|禁用| R[会话完成]
+
+    Q --> S{加载完整对话记录}
+    S -->|成功| T[提取关键洞察<br/>LLM反思:<br/>• 分析对话<br/>• 评分知识<br/>• 生成标签]
+    S -->|无记录| R
+
+    T --> U{知识有变化?}
+    U -->|是| V[更新Playbook<br/>• 合并相似项<br/>• 更新分数<br/>• 清理低分项]
+    U -->|否| R
+
+    V --> W[保存知识库<br/>备份+合并]
+    W --> R
+
+    %% PreCompact Hook (上下文保护)
+    R --> X{上下文压缩?}
+    X -->|是| Y[PreCompact Hook<br/>超时: 120s]
+    X -->|否| AA[会话完成]
+
+    Y --> AB[保护高评分知识<br/>保留重要上下文]
+    AB --> AA
+
+    %% 错误处理路径
+    C --> AC{Hook超时/错误}
+    Q --> AD{Hook超时/错误}
+    Y --> AE{Hook超时/错误}
+
+    AC --> AF[记录诊断日志<br/>优雅降级]
+    AD --> AG[记录诊断日志<br/>优雅降级]
+    AE --> AH[记录诊断日志<br/>优雅降级]
+
+    AF --> Z
+    AG --> R
+    AH --> AB
+
+    %% 诊断模式
+    subgraph DIAG[诊断模式]
+        AI[诊断模式激活?]
+        AJ[详细日志到<br/>~/.claude/diagnostics/]
+        AK[性能指标]
+    end
+
+    AF --> AJ
+    AD --> AJ
+    AE --> AJ
+
+    %% 设置配置
+    subgraph CFG[配置层]
+        AL[API密钥设置]
+        AM[模型选择]
+        AN[超时值]
+        AO[行为开关]
+    end
+
+    B -.-> AL
+    C -.-> AN
+    Q -.-> AN
+    Y -.-> AN
+
+    %% 未来收益
+    AA --> AK
+    AK --> AL[未来会话:<br/>• 更好的上下文感知<br/>• 改进的响应质量<br/>• 项目特定知识]
+```
+
 ### `/init-playbook` - 历史知识批量提取
 
 从历史对话中批量提取知识点，快速构建知识库：
