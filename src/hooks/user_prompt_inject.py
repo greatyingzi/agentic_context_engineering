@@ -17,6 +17,7 @@ def main():
     session_id = input_data.get("session_id", "unknown")
     prompt_text = input_data.get("prompt", "")
     transcript_path = input_data.get("transcript_path")
+    only_adjustable = input_data.get("only_adjustable", False)  # New parameter
 
     playbook = load_playbook()
 
@@ -29,7 +30,7 @@ def main():
 
     tags, prompt_tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)
     selected_key_points = select_relevant_keypoints(
-        playbook, tags, limit=6, prompt_tags=prompt_tags
+        playbook, tags, limit=6, prompt_tags=prompt_tags, only_adjustable=only_adjustable
     )
     context = format_playbook(playbook, key_points=selected_key_points, tags=tags)
 
