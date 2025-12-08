@@ -10,33 +10,49 @@ Extract key points from reasoning trajectories, classify them with concise tags,
 # Pending / new key points (below divider)
 {pending_playbook}
 
+# Existing Tags in Playbook
+{existing_tags_context}
+
 # Instructions
-1. Key points should have reference value for the future, such as:
+1. Key points should have reference value for future, such as:
    - Failed approaches to avoid
    - Successful solutions and patterns
    - User preferences and habits
 
-2. From the Reasoning Trajectories, derive NEW candidate points that are NOT already covered.
+2. From Reasoning Trajectories, derive NEW candidate points that are NOT already covered.
 
-3. Normalize → cluster → merge across BOTH sets (existing + pending + new candidates):
-   - For any potential cluster, have the model estimate semantic similarity; merge only when similarity is ≥ 0.8 (80%). If < 0.8, keep as separate items.
-   - Cluster items that share the same actor/subject + goal/action + outcome/constraint, or are paraphrases/near-synonyms answering the same “what to do/avoid and why”.
-   - For each admitted cluster, merge all unique details into ONE canonical, action-oriented sentence (≤180 characters). Never emit multiple near-duplicates.
+3. **TAG RESPONSIBILITY - Your Core Task for Tags:**
+   - You are responsible for ALL tag decisions - no automatic merging will happen later
+   - Analyze ALL existing tags from the "Existing Tags in Playbook" section above
+   - When creating new key points, first check if any existing tags (80%+ semantic similarity) are suitable
+   - If existing tags are suitable, REUSE them instead of creating new ones
+   - If multiple similar tags exist, choose the MOST FREQUENTLY USED one (listed first)
+   - Only create new tags when absolutely necessary for concepts not covered by existing tags
+   - Examples: If you see "python" and "python3" in existing tags, prefer "python"; if "api" exists, use it instead of "apis"
+
+4. Normalize → cluster → merge across BOTH sets (existing + pending + new candidates):
+   - For any potential cluster, estimate semantic similarity; merge only when similarity is ≥ 0.8 (80%).
+   - When merging tags, consolidate to most frequently used existing tag
+   - Cluster items that share the same actor/subject + goal/action + outcome/constraint
+   - For each admitted cluster, merge all unique details into ONE canonical, action-oriented sentence (≤180 characters)
    - Examples:
      - Input cluster: "Use retries for flaky API calls" + "For unstable endpoints, add retry with backoff" → Output: "Use retry with backoff for flaky/unstable API endpoints to reduce transient failures."
      - Input cluster: "Cache expensive queries" + "Memoize repeated DB reads" → Output: "Cache/memoize expensive, repeated DB queries to cut latency and load."
 
-4. Cross-check with the Current Playbook:
-   - If a candidate’s meaning is already present, skip it unless you add genuinely new nuance.
+5. Cross-check with Current Playbook:
+   - If a candidate's meaning is already present, skip it unless you add genuinely new nuance.
    - When nuance exists, merge it into a single line rather than adding a duplicate entry.
 
-5. Keep only compact, self-contained sentences; avoid fluff, hedging, or multi-sentence items. All key point text and tags must be concise English.
+6. Keep only compact, self-contained sentences; avoid fluff, hedging, or multi-sentence items. All key point text and tags must be concise English.
 
-6. For each merged key point, include:
-   - 2-5 concise, lowercase tags that describe the topic, technology, or intent (e.g., ["python", "api", "testing"]); deduplicate tags.
-   - sources: the list of original key point names that were merged (may include existing and pending names). Keep this list concise.
+7. **FINAL TAG ASSIGNMENT (Your Responsibility):**
+   - Assign 2-5 concise, lowercase tags that describe topic, technology, or intent
+   - **PRIORITY:** Always reuse existing tags when semantically similar (≥80%)
+   - **CONSOLIDATION:** When similar tags exist, use most frequently used one
+   - **DUPLICATE AVOIDANCE:** Never create "apis" if "api" exists; never create "python3" if "python" exists
+   - sources: list of original key point names that were merged (may include existing and pending names). Keep this list concise.
 
-7. Evaluate EACH existing playbook key point based on the reasoning trajectories:
+8. Evaluate EACH existing playbook key point based on reasoning trajectories:
    - "helpful": key point was useful and applied correctly
    - "harmful": key point caused issues or provided wrong guidance
    - "neutral": key point was not relevant

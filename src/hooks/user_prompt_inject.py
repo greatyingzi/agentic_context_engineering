@@ -27,7 +27,7 @@ def main():
         except Exception:
             messages = []
 
-    tags, prompt_tags = generate_tags_from_messages(messages, prompt_text)
+    tags, prompt_tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)
     selected_key_points = select_relevant_keypoints(
         playbook, tags, limit=6, prompt_tags=prompt_tags
     )

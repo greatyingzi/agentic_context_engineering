@@ -4,7 +4,9 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, List
+import math
+import threading
 
 try:
     import anthropic
@@ -12,6 +14,14 @@ try:
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
+
+# For semantic similarity calculation
+try:
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 
 def get_project_dir() -> Path:
@@ -90,6 +100,185 @@ def normalize_tags(tags: Optional[list[str]], max_tags: int = 6) -> list[str]:
     return normalized
 
 
+# Global variables for sentence transformer model (lazy loading)
+_sentence_model = None
+_model_lock = threading.Lock()
+
+
+def get_sentence_model():
+    """Thread-safe lazy loading of sentence transformer model."""
+    global _sentence_model
+    if _sentence_model is None:
+        with _model_lock:
+            if _sentence_model is None and SENTENCE_TRANSFORMERS_AVAILABLE:
+                try:
+                    # Use a lightweight multilingual model
+                    _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+                except Exception as e:
+                    # Fallback if model loading fails
+                    print(f"Warning: Failed to load sentence transformer model: {e}", file=sys.stderr)
+                    _sentence_model = False
+    return _sentence_model
+
+
+def calculate_semantic_similarity(text1: str, text2: str) -> float:
+    """Calculate semantic similarity between two texts using sentence transformers.
+    Returns cosine similarity score between 0 and 1."""
+    model = get_sentence_model()
+    if not model:
+        # Fallback to lexical similarity if semantic model unavailable
+        return calculate_lexical_similarity(text1, text2)
+
+    try:
+        # Encode texts to vectors
+        embeddings = model.encode([text1, text2])
+        # Calculate cosine similarity
+        cos_sim = np.dot(embeddings[0], embeddings[1]) / (
+            np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])
+        )
+        return float(cos_sim)
+    except Exception:
+        # Fallback to lexical similarity on error
+        return calculate_lexical_similarity(text1, text2)
+
+
+def calculate_lexical_similarity(text1: str, text2: str) -> float:
+    """Calculate lexical similarity using Jaccard similarity with substring matching."""
+    # Handle empty strings
+    if not text1 and not text2:
+        return 1.0
+    if not text1 or not text2:
+        return 0.0
+
+    # Convert to lowercase
+    text1_lower = text1.lower()
+    text2_lower = text2.lower()
+
+    # Check exact match
+    if text1_lower == text2_lower:
+        return 1.0
+
+    # Check substring relationship (api vs apis should have high similarity)
+    substring_bonus = 0.0
+    if text1_lower in text2_lower or text2_lower in text1_lower:
+        substring_bonus = 0.7
+
+    # Token-based similarity
+    tokens1 = set(re.findall(r'[\w_-]+', text1_lower))
+    tokens2 = set(re.findall(r'[\w_-]+', text2_lower))
+
+    if not tokens1 and not tokens2:
+        return 1.0
+    if not tokens1 or not tokens2:
+        return substring_bonus
+
+    intersection = tokens1 & tokens2
+    union = tokens1 | tokens2
+
+    jaccard_similarity = len(intersection) / len(union) if union else 0.0
+
+    # Combine Jaccard similarity with substring bonus
+    final_similarity = max(jaccard_similarity, substring_bonus)
+
+    return final_similarity
+
+
+def find_similar_tags(target_tag: str, existing_tags: List[str], threshold: float = 0.8) -> List[Tuple[str, float]]:
+    """Find tags that are semantically similar to the target tag.
+    Returns list of (tag, similarity_score) tuples above threshold."""
+    similar_tags = []
+
+    for tag in existing_tags:
+        if tag.lower() == target_tag.lower():
+            # Exact match gets highest score
+            similar_tags.append((tag, 1.0))
+            continue
+
+        # Calculate semantic similarity
+        similarity = calculate_semantic_similarity(target_tag, tag)
+        if similarity >= threshold:
+            similar_tags.append((tag, similarity))
+
+    # Sort by similarity score (descending)
+    similar_tags.sort(key=lambda x: x[1], reverse=True)
+    return similar_tags
+
+
+def get_tag_statistics_path() -> Path:
+    return get_project_dir() / ".claude" / "tag_statistics.json"
+
+
+def load_tag_statistics() -> dict:
+    """Load tag statistics from separate JSON file."""
+    stats_path = get_tag_statistics_path()
+
+    if not stats_path.exists():
+        return {
+            "version": "1.0",
+            "last_updated": None,
+            "total_tags": 0,
+            "total_usage": 0,
+            "tags": {}
+        }
+
+    try:
+        with open(stats_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {
+            "version": "1.0",
+            "last_updated": None,
+            "total_tags": 0,
+            "total_usage": 0,
+            "tags": {}
+        }
+
+
+def save_tag_statistics(stats: dict):
+    """Save tag statistics to separate JSON file."""
+    stats_path = get_tag_statistics_path()
+    stats_path.parent.mkdir(parents=True, exist_ok=True)
+
+    stats["last_updated"] = datetime.now().isoformat()
+
+    with open(stats_path, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2, ensure_ascii=False)
+
+
+def update_tag_statistics(stats: dict, new_tags: List[str]) -> dict:
+    """Update tag statistics with new tags and their usage statistics."""
+    if "tags" not in stats:
+        stats["tags"] = {}
+    if "total_usage" not in stats:
+        stats["total_usage"] = 0
+    if "total_tags" not in stats:
+        stats["total_tags"] = 0
+    if "last_updated" not in stats:
+        stats["last_updated"] = None
+
+    tags_dict = stats["tags"]
+
+    for tag in new_tags:
+        tag_key = tag.lower()
+        if tag_key not in tags_dict:
+            tags_dict[tag_key] = {
+                "canonical": tag,
+                "usage_count": 0,
+                "first_used": datetime.now().isoformat(),
+                "last_used": None
+            }
+            stats["total_tags"] += 1
+
+        # Update usage statistics
+        tags_dict[tag_key]["usage_count"] += 1
+        tags_dict[tag_key]["last_used"] = datetime.now().isoformat()
+        stats["total_usage"] += 1
+
+    stats["last_updated"] = datetime.now().isoformat()
+
+    return stats
+
+
 MAX_KEYPOINTS = 250  # hard cap to keep playbook manageable
 
 
@@ -160,11 +349,43 @@ def load_settings() -> dict:
         return {"playbook_update_on_exit": False, "playbook_update_on_clear": False}
 
 
+def validate_playbook_structure(data: dict) -> bool:
+    """Validate that playbook data has correct structure."""
+    if not isinstance(data, dict):
+        return False
+
+    # Check required fields
+    if 'key_points' in data and not isinstance(data['key_points'], list):
+        return False
+
+    # Check key_points structure if present
+    if 'key_points' in data:
+        for kp in data['key_points']:
+            if isinstance(kp, dict):
+                # Validate keypoint fields
+                if 'text' in kp and not isinstance(kp['text'], str):
+                    return False
+                if 'tags' in kp and not isinstance(kp['tags'], list):
+                    return False
+                if 'score' in kp and not isinstance(kp['score'], (int, float)):
+                    return False
+                if 'name' in kp and not isinstance(kp['name'], str):
+                    return False
+                if 'pending' in kp and not isinstance(kp['pending'], bool):
+                    return False
+
+    return True
+
+
 def load_playbook() -> dict:
     playbook_path = get_project_dir() / ".claude" / "playbook.json"
 
     if not playbook_path.exists():
-        return {"version": "1.0", "last_updated": None, "key_points": []}
+        return {
+            "version": "1.0",
+            "last_updated": None,
+            "key_points": []
+        }
 
     def _is_divider(entry: object) -> bool:
         return isinstance(entry, dict) and entry.get("divider") is True
@@ -172,6 +393,13 @@ def load_playbook() -> dict:
     try:
         with open(playbook_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+
+        # Validate playbook structure
+        if not validate_playbook_structure(data):
+            print(f"Warning: Invalid playbook structure in {playbook_path}, using default", file=sys.stderr)
+            if is_diagnostic_mode():
+                save_diagnostic(f"Invalid playbook structure in {playbook_path}", "playbook_validation")
+            return {"version": "1.0", "last_updated": None, "key_points": []}
 
         if "key_points" not in data:
             data["key_points"] = []
@@ -210,7 +438,14 @@ def load_playbook() -> dict:
         data["key_points"] = keypoints
         return data
 
+    except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
+        # Handle specific file-related errors
+        print(f"Warning: Error loading playbook ({e}), using default", file=sys.stderr)
+        if is_diagnostic_mode():
+            save_diagnostic(f"Error loading playbook: {e}", "playbook_error")
+        return {"version": "1.0", "last_updated": None, "key_points": []}
     except Exception:
+        # Catch-all for any other unexpected errors
         return {"version": "1.0", "last_updated": None, "key_points": []}
 
 
@@ -245,8 +480,21 @@ def save_playbook(playbook: dict):
     payload = dict(playbook)
     payload["key_points"] = serialized_keypoints
 
-    with open(playbook_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+    # Atomic write: write to temp file first, then move
+    temp_path = playbook_path.with_suffix('.tmp')
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+        # Atomic move
+        temp_path.replace(playbook_path)
+    except Exception as e:
+        # Clean up temp file if something goes wrong
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except:
+                pass
+        raise e
 
 
 def format_playbook(
@@ -616,10 +864,34 @@ def get_anthropic_client() -> Tuple[Optional["anthropic.Anthropic"], Optional[st
 
 
 def generate_tags_from_messages(
-    messages: list[dict], prompt_text: str = "", diagnostic_name: str = "tagger"
+    messages: list[dict],
+    prompt_text: str = "",
+    playbook: Optional[dict] = None,
+    diagnostic_name: str = "tagger"
 ) -> tuple[list[str], list[str]]:
-    """Generate request tags from recent conversation history and the pending prompt."""
+    """Generate request tags from recent conversation history and pending prompt.
+
+    Args:
+        messages: Recent conversation history
+        prompt_text: The current prompt text
+        playbook: Optional playbook containing existing tags for recommendations
+        diagnostic_name: Name for diagnostic logging
+
+    Returns:
+        Tuple of (final_tags, seed_tags)
+    """
     prompt_seed_tags = normalize_tags(infer_tags_from_text(prompt_text, max_tags=4))
+
+    # Get existing tags from playbook key_points
+    existing_tags = []
+    if playbook and "key_points" in playbook:
+        # Collect all unique tags from key_points
+        tags_set = set()
+        for kp in playbook["key_points"]:
+            kp_tags = kp.get("tags", [])
+            if isinstance(kp_tags, list):
+                tags_set.update(kp_tags)
+        existing_tags = list(tags_set)
 
     client, model = get_anthropic_client()
     if not client:
@@ -629,10 +901,18 @@ def generate_tags_from_messages(
 
     recent_messages = messages[-12:] if messages else []
     template = load_template("tagger.txt")
+
     prompt = template.format(
         conversation=json.dumps(recent_messages, indent=2, ensure_ascii=False),
         prompt=prompt_text,
+        existing_tags_context="",  # Empty placeholder since we removed it from template
     )
+
+    # Add existing tags context if we have any
+    if existing_tags:
+        # Provide simple tag list to help LLM understand the tag space
+        existing_tags_context = f"\n\nExisting tags in playbook: {json.dumps(sorted(existing_tags))}"
+        prompt += existing_tags_context
 
     response = client.messages.create(
         model=model, max_tokens=1024, messages=[{"role": "user", "content": prompt}]
@@ -704,6 +984,18 @@ async def extract_keypoints(
         else {}
     )
 
+    # Collect existing tags from all key_points
+    existing_tags = []
+    if playbook and "key_points" in playbook:
+        tags_set = set()
+        for kp in playbook["key_points"]:
+            kp_tags = kp.get("tags", [])
+            if isinstance(kp_tags, list):
+                tags_set.update(kp_tags)
+        existing_tags = list(tags_set)
+
+    existing_tags_context = f"\n\nExisting tags in playbook: {json.dumps(sorted(existing_tags))}"
+
     prompt = template.format(
         trajectories=json.dumps(messages, indent=2, ensure_ascii=False),
         existing_playbook=json.dumps(
@@ -712,6 +1004,7 @@ async def extract_keypoints(
         pending_playbook=json.dumps(
             pending_playbook, indent=2, ensure_ascii=False
         ),
+        existing_tags_context=existing_tags_context,
     )
 
     response = client.messages.create(
