@@ -293,16 +293,98 @@ Customize in `~/.claude/settings.json`:
 
 ```mermaid
 graph TD
-    A[Start New Session] --> B[UserPromptSubmit Hook]
-    B --> C[Generate Tags]
-    B --> D[Select Relevant Knowledge]
-    B --> E[Inject Context]
-    E --> F[Enhanced Claude Response]
-    F --> G[Continue Development]
-    G --> H[SessionEnd Hook]
-    H --> I[Extract Key Insights]
-    H --> J[Update Knowledge Base]
-    J --> K[Future Sessions Benefit]
+    A[Start New Session] --> B{Check Hook Settings<br/>~/.claude/settings.json}
+    B -->|Enabled| C[UserPromptSubmit Hook<br/>Timeout: 10s]
+    B -->|Disabled| Z[Standard Claude Session]
+
+    %% UserPromptSubmit Flow
+    C --> D{Load Session History}
+    D -->|Success| E[Parallel Processing Start]
+    D -->|Failure| E[Parallel Processing Start]
+
+    subgraph E[Parallel Processing]
+        F[Generate Tags<br/>LLM Analysis:<br/>• Current prompt<br/>• Session history]
+        G[Load Playbook<br/>Knowledge Base]
+    end
+
+    E --> H[Select Relevant Knowledge<br/>• Tag matching<br/>• Score ranking<br/>• Max 6 items]
+    H --> I{Knowledge Found?}
+    I -->|Yes| J[Format Context Injection]
+    I -->|No| Z
+
+    J --> K[Inject Context<br/>Enhanced Prompt<br/>→ Claude]
+    K --> L[Enhanced Claude Response]
+
+    %% Main Development Loop
+    L --> M[Development Work]
+    M --> N{Session End?}
+    N -->|No| M
+    N -->|Yes| O[Trigger Session End]
+
+    %% SessionEnd Flow
+    O --> P{Check Update Settings<br/>playbook_update_on_exit}
+    P -->|Enabled| Q[SessionEnd Hook<br/>Timeout: 120s]
+    P -->|Disabled| R[Session Complete]
+
+    Q --> S{Load Full Transcript}
+    S -->|Success| T[Extract Key Insights<br/>LLM Reflection:<br/>• Analyze conversation<br/>• Score knowledge<br/>• Generate tags]
+    S -->|No Transcript| R
+
+    T --> U{Knowledge Changes?}
+    U -->|Yes| V[Update Playbook<br/>• Merge similar items<br/>• Update scores<br/>• Cleanup low scores]
+    U -->|No| R
+
+    V --> W[Save Knowledge Base<br/>Backup + Merge]
+    W --> R
+
+    %% PreCompact Hook (Context Protection)
+    R --> X{Context Compaction?}
+    X -->|Yes| Y[PreCompact Hook<br/>Timeout: 120s]
+    X -->|No| AA[Session Complete]
+
+    Y --> AB[Protect High-Score Knowledge<br/>Preserve Important Context]
+    AB --> AA
+
+    %% Error Handling Paths
+    C --> AC{Hook Timeout/Error}
+    Q --> AD{Hook Timeout/Error}
+    Y --> AE{Hook Timeout/Error}
+
+    AC --> AF[Log to Diagnostics<br/>Graceful Fallback]
+    AD --> AG[Log to Diagnostics<br/>Graceful Fallback]
+    AE --> AH[Log to Diagnostics<br/>Graceful Fallback]
+
+    AF --> Z
+    AG --> R
+    AH --> AB
+
+    %% Diagnostic Mode
+    subgraph DIAG[Diagnostic Mode]
+        AI[Diagnostic Mode Active?]
+        AJ[Detailed Logs to<br/>~/.claude/diagnostics/]
+        AK[Performance Metrics]
+    end
+
+    AF --> AJ
+    AD --> AJ
+    AE --> AJ
+
+    %% Settings Configuration
+    subgraph CFG[Configuration Layer]
+        AL[API Key Settings]
+        AM[Model Selection]
+        AN[Timeout Values]
+        AO[Behavior Flags]
+    end
+
+    B -.-> AL
+    C -.-> AN
+    Q -.-> AN
+    Y -.-> AN
+
+    %% Future Benefits
+    AA --> AK
+    AK --> AL[Future Sessions:<br/>• Better context awareness<br/>• Improved response quality<br/>• Project-specific knowledge]
 ```
 
 ### Real-World Examples
