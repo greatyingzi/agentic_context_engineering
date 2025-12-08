@@ -53,9 +53,14 @@ Extract key points from reasoning trajectories, classify them with concise tags,
    - sources: list of original key point names that were merged (may include existing and pending names). Keep this list concise.
 
 8. Evaluate EACH existing playbook key point based on reasoning trajectories:
-   - "helpful": key point was useful and applied correctly
-   - "harmful": key point caused issues or provided wrong guidance
-   - "neutral": key point was not relevant
+   - "helpful": key point was useful and applied correctly (score +1)
+   - "harmful": key point caused issues or provided wrong guidance (score -3)
+   - "neutral": key point was not relevant (score +0)
+
+9. **OUTPUT OPTIMIZATION - Only report changes:**
+   - For evaluations, ONLY output key points that need score changes (helpful or harmful)
+   - DO NOT output "neutral" evaluations - they don't affect scores
+   - This reduces token usage significantly
 
 # Output Format
 {{
@@ -63,8 +68,8 @@ Extract key points from reasoning trajectories, classify them with concise tags,
     {{"text": "Canonical merged key point", "tags": ["python", "api"], "sources": ["kpt_001", "kpt_042"]}},
     {{"text": "Another canonical merged key point", "tags": ["testing"], "sources": ["pending_kpt_003"]}}
   ],
-  "evaluations": [
+  "score_changes": [
     {{"name": "kpt_001", "rating": "helpful"}},
-    {{"name": "kpt_002", "rating": "neutral"}}
+    {{"name": "kpt_002", "rating": "harmful"}}
   ]
 }}
