@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -9,7 +10,7 @@ from typing import Optional
 def get_project_dir() -> Path:
     project_dir = os.getenv("CLAUDE_PROJECT_DIR")
     if not project_dir:
-        return Path.cwd().parent
+        return Path.cwd()
     return Path(project_dir)
 
 
@@ -29,12 +30,13 @@ def is_diagnostic_mode() -> bool:
 
 
 def save_diagnostic(content: str, name: str):
-    user_claude_dir = get_user_claude_dir()
-    diagnostics_dir = user_claude_dir / ".diagnostics"
-    diagnostics_dir.mkdir(exist_ok=True, parents=True)
+    """Save diagnostic output to the project's .claude/diagnostic directory."""
+    project_dir = Path.cwd()
+    diagnostic_dir = project_dir / ".claude" / "diagnostic"
+    diagnostic_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_path = diagnostics_dir / f"{name}_{timestamp}.txt"
+    file_path = diagnostic_dir / f"{timestamp}_{name}.txt"
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
 
@@ -99,7 +101,3 @@ def load_settings() -> dict:
         with open(settings_path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
-
-
-# Import datetime for save_diagnostic
-from datetime import datetime

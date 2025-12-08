@@ -2,10 +2,14 @@
 
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
 from utils import get_project_dir, get_user_claude_dir, is_diagnostic_mode, save_diagnostic
+from llm_client import generate_keypoint_name
+
+MAX_KEYPOINTS = 250
 
 
 def validate_playbook_structure(data: dict) -> bool:
@@ -29,68 +33,198 @@ def validate_playbook_structure(data: dict) -> bool:
 def load_playbook() -> dict:
     """Load the playbook JSON file."""
     project_dir = get_project_dir()
-    playbook_path = project_dir / "playbook.json"
+    playbook_path = project_dir / ".claude" / "playbook.json"
+
+    # Ensure .claude directory exists
+    playbook_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not playbook_path.exists():
         # Create initial playbook if it doesn't exist
         return {
             "version": "1.0",
+            "last_updated": None,
             "key_points": [],
             "metadata": {"created_by": "Agentic Context Engineering", "last_updated": ""},
         }
 
+    def _is_divider(entry: object) -> bool:
+        return isinstance(entry, dict) and entry.get("divider") is True
+
     try:
         with open(playbook_path, "r", encoding="utf-8") as f:
-            playbook = json.load(f)
+            data = json.load(f)
 
-        if not validate_playbook_structure(playbook):
+        if not validate_playbook_structure(data):
             if is_diagnostic_mode():
                 save_diagnostic("Invalid playbook structure", "playbook_load_error")
             return {
                 "version": "1.0",
+                "last_updated": None,
                 "key_points": [],
                 "metadata": {"error": "Invalid structure", "last_updated": ""},
             }
 
-        return playbook
-    except Exception as e:
+        if "key_points" not in data:
+            data["key_points"] = []
+
+        keypoints = []
+        existing_names = set()
+
+        for item in data["key_points"]:
+            if _is_divider(item):
+                continue
+            if isinstance(item, str):
+                keypoint = {
+                    "name": generate_keypoint_name(existing_names),
+                    "text": item,
+                    "score": 0,
+                    "pending": False,
+                }
+            elif isinstance(item, dict):
+                keypoint = dict(item)
+                if "name" not in keypoint:
+                    keypoint["name"] = generate_keypoint_name(existing_names)
+                if "score" not in keypoint:
+                    keypoint["score"] = 0
+                if "pending" not in keypoint:
+                    keypoint["pending"] = False
+            else:
+                continue
+
+            # Normalize tags and infer if missing
+            from tag_manager import normalize_tags
+            from llm_client import infer_tags_from_text
+            keypoint["tags"] = normalize_tags(keypoint.get("tags", []))
+            if not keypoint["tags"]:
+                keypoint["tags"] = infer_tags_from_text(keypoint.get("text", ""))
+
+            existing_names.add(keypoint["name"])
+            keypoints.append(keypoint)
+
+        data["key_points"] = keypoints
+        return data
+    except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
         if is_diagnostic_mode():
             save_diagnostic(f"Failed to load playbook: {e}", "playbook_load_error")
         return {
             "version": "1.0",
+            "last_updated": None,
             "key_points": [],
             "metadata": {"error": str(e), "last_updated": ""},
+        }
+    except Exception:
+        return {
+            "version": "1.0",
+            "last_updated": None,
+            "key_points": [],
+            "metadata": {"error": "Unknown error", "last_updated": ""},
         }
 
 
 def save_playbook(playbook: dict):
-    """Save the playbook JSON file."""
+    """Save the playbook JSON file with enhanced error handling and logging."""
     project_dir = get_project_dir()
-    playbook_path = project_dir / "playbook.json"
-    backup_path = project_dir / "playbook.json.backup"
+    playbook_path = project_dir / ".claude" / "playbook.json"
+    backup_path = project_dir / ".claude" / "playbook.json.backup"
+
+    # Ensure .claude directory exists
+    try:
+        playbook_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        error_msg = f"Failed to create .claude directory: {e}"
+        if is_diagnostic_mode():
+            save_diagnostic(error_msg, "playbook_save_error")
+        raise Exception(error_msg)
+
+    backup_created = False
 
     try:
-        # Create backup of existing file
+        # Create backup of existing file (use copy2 to avoid permission issues)
         if playbook_path.exists():
-            playbook_path.rename(backup_path)
+            try:
+                shutil.copy2(playbook_path, backup_path)
+                backup_created = True
+                if is_diagnostic_mode():
+                    save_diagnostic(f"Created backup at {backup_path}", "playbook_save_info")
+            except Exception as e:
+                error_msg = f"Failed to create backup: {e}"
+                if is_diagnostic_mode():
+                    save_diagnostic(error_msg, "playbook_save_warning")
+                # Continue without backup but log the issue
 
         # Add metadata
         playbook["metadata"] = playbook.get("metadata", {})
         playbook["metadata"]["last_updated"] = os.getenv("ACE_TIMESTAMP", "")
 
+        # Insert a visual divider between stable items and pending ones for readability.
+        existing = [kp for kp in playbook.get("key_points", []) if not kp.get("pending")]
+        pending = [kp for kp in playbook.get("key_points", []) if kp.get("pending")]
+
+        def _serialize_kp(kp: dict, force_pending: bool = False) -> dict:
+            item = dict(kp)
+            is_pending = bool(item.get("pending")) or force_pending
+            if is_pending:
+                item["pending"] = True
+            else:
+                item.pop("pending", None)
+            return item
+
+        try:
+            serialized_keypoints = [_serialize_kp(kp) for kp in existing]
+            if pending:
+                serialized_keypoints.append(
+                    {
+                        "divider": True,
+                        "text": "--- pending key points below ---",
+                    }
+                )
+                serialized_keypoints.extend(_serialize_kp(kp, force_pending=True) for kp in pending)
+        except Exception as e:
+            error_msg = f"Failed to serialize keypoints: {e}"
+            if is_diagnostic_mode():
+                save_diagnostic(error_msg, "playbook_save_error")
+            raise Exception(error_msg)
+
+        # Save with proper key_points structure
+        save_data = dict(playbook)
+        save_data["key_points"] = serialized_keypoints
+
         # Save new version
-        with open(playbook_path, "w", encoding="utf-8") as f:
-            json.dump(playbook, f, indent=2, ensure_ascii=False)
+        try:
+            with open(playbook_path, "w", encoding="utf-8") as f:
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            error_msg = f"Failed to write playbook to {playbook_path}: {e}"
+            if is_diagnostic_mode():
+                save_diagnostic(error_msg, "playbook_save_error")
+            raise Exception(error_msg)
+
+        # Success log
+        if is_diagnostic_mode():
+            total_kps = len(existing) + len(pending)
+            save_diagnostic(
+                f"Successfully saved playbook with {total_kps} keypoints ({len(existing)} stable, {len(pending)} pending)",
+                "playbook_save_success"
+            )
 
     except Exception as e:
         # Restore from backup if available
-        if backup_path.exists():
-            backup_path.rename(playbook_path)
-        raise e
+        if backup_created and backup_path.exists():
+            try:
+                shutil.copy2(backup_path, playbook_path)
+                if is_diagnostic_mode():
+                    save_diagnostic("Restored backup after save failure", "playbook_save_recovery")
+            except Exception as restore_error:
+                error_msg = f"Critical: Failed to restore backup after save failure: {restore_error}"
+                if is_diagnostic_mode():
+                    save_diagnostic(error_msg, "playbook_save_critical")
+
+        # Re-raise the original exception with context
+        raise Exception(f"Playbook save failed: {e}") from e
 
 
 def format_playbook(
-    playbook: dict, key_points: Optional[list[dict]] = None, tags: Optional[list[str]] = None
+    playbook: dict, key_points: Optional[list[dict]] = None
 ) -> str:
     """Format playbook content for injection."""
     if not key_points:
@@ -113,7 +247,12 @@ def format_playbook(
         score_str = f"+{score}" if score > 0 else str(score)
         tags_str = ", ".join(kp_tags) if kp_tags else "no tags"
 
-        context_parts.append(f"• [{score_str}] {name} (tags: {tags_str})")
+        # Include keypoint text content
+        text = kp.get("text", "")
+        if text:
+            context_parts.append(f"• [{score_str}] {name} (tags: {tags_str}) {text}")
+        else:
+            context_parts.append(f"• [{score_str}] {name} (tags: {tags_str})")
 
     return "\n".join(context_parts)
 
@@ -129,23 +268,47 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
         if isinstance(kp, dict) and "tags" in kp:
             all_existing_tags.update(kp["tags"])
 
+    # First apply score changes if present
+    score_changes = extraction_result.get("score_changes", [])
+    for change in score_changes:
+        if not isinstance(change, dict):
+            continue
+        name = change.get("name")
+        rating = change.get("rating")
+        if name is not None and rating is not None:
+            # Convert rating to score change
+            score_change = 0
+            if rating == "helpful":
+                score_change = 1
+            elif rating == "harmful":
+                score_change = -3
+            # "neutral" scores are 0 and don't need to be applied
+
+            if score_change != 0:
+                # Find and update the keypoint with this name
+                for kp in key_points:
+                    if isinstance(kp, dict) and kp.get("name") == name:
+                        current_score = kp.get("score", 0)
+                        kp["score"] = current_score + score_change
+                        break
+
     # Process new key points
     new_keypoints = []
-    for new_kp in extraction_result.get("key_points", []):
+    for new_kp in extraction_result.get("merged_key_points", []):
         if not isinstance(new_kp, dict):
             continue
 
         # Clean up the key point data
         cleaned_kp = {
             "name": new_kp.get("name", ""),
-            "content": new_kp.get("content", ""),
+            "text": new_kp.get("text", ""),
             "score": int(new_kp.get("score", 0)),
             "tags": new_kp.get("tags", []),
             "adjustable": new_kp.get("adjustable", True),
         }
 
         # Generate unique name if needed
-        if cleaned_kp["name"] in existing_names:
+        if not cleaned_kp["name"] or cleaned_kp["name"] in existing_names:
             cleaned_kp["name"] = generate_keypoint_name(existing_names)
 
         # Remove duplicate tags and normalize
@@ -159,6 +322,15 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
 
     # Merge with existing key points
     updated_keypoints = key_points + new_keypoints
+
+    # Enforce MAX_KEYPOINTS limit - keep highest scoring ones
+    if len(updated_keypoints) > MAX_KEYPOINTS:
+        sorted_keypoints = sorted(
+            updated_keypoints,
+            key=lambda kp: (kp.get("score", 0), kp.get("name", "")),
+            reverse=True
+        )
+        updated_keypoints = sorted_keypoints[:MAX_KEYPOINTS]
 
     # Update playbook structure
     updated_playbook = dict(playbook)
@@ -177,12 +349,14 @@ def select_relevant_keypoints(
     playbook: dict,
     tags: list[str],
     limit: int = 6,
-    prompt_tags: Optional[list[str]] = None,
     only_adjustable: bool = False
 ) -> list[dict]:
-    """Simplified version: pick key points with exact tag matches only.
+    """Select key points that match requested tags.
 
-    Since LLM now handles similarity matching, we only need exact matching.
+    Returns key points with exact tag matches only, sorted by:
+    1. Number of matching tags (more matches first)
+    2. Key point score (higher score first)
+    3. Key point name (alphabetical)
     """
     key_points = playbook.get("key_points", [])
     if not key_points:

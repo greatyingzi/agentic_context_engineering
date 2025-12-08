@@ -1,5 +1,5 @@
 # Task
-Derive concise tags that capture the current request.
+Derive concise tags that capture the current request, prioritizing existing tags from the playbook.
 
 # Conversation (recent messages)
 {conversation}
@@ -8,13 +8,15 @@ Derive concise tags that capture the current request.
 {prompt}
 
 # Instructions
-- Create new tags that best capture the request domain
+- **PRIORITY 1: REUSE EXISTING TAGS** - Always check if existing tags from the playbook (shown below) are semantically similar (≥80%) to the current request
+- **PRIORITY 2: CONSOLIDATE** - When similar existing tags exist, use the most frequently used one
+- **PRIORITY 3: CREATE NEW ONLY IF NECESSARY** - Only create new tags when existing tags don't adequately capture the request domain
+- **DUPLICATE AVOIDANCE** - Never create "apis" if "api" exists; never create "python3" if "python" exists
 - Always include at least one tag that reflects the pending prompt
-- Prioritize core domain, technology, and task/action terms; place prompt-derived tags first
+- Prioritize core domain, technology, and task/action terms
 - Return 3-6 short, lowercase tags (1-3 words each), **English only (ASCII)**
 - Focus on domains, technologies, files, tasks, and goals; avoid generic words
 - Translate non-English concepts to concise English tags; remove duplicates; respond with JSON only
 
 # Output Format
 ["python", "api", "testing"]
-

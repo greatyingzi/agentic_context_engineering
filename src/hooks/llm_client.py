@@ -25,11 +25,17 @@ def get_anthropic_client() -> Tuple[Optional["anthropic.Anthropic"], Optional[st
         or os.getenv("ANTHROPIC_MODEL")
         or "claude-3-5-sonnet-20241022"
     )
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = (
+        os.getenv("AGENTIC_CONTEXT_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+    )
     if not api_key:
         from utils import save_diagnostic, is_diagnostic_mode
         if is_diagnostic_mode():
-            save_diagnostic("ANTHROPIC_API_KEY not set", "client_missing")
+            save_diagnostic(
+                "Neither AGENTIC_CONTEXT_API_KEY nor ANTHROPIC_API_KEY is set",
+                "client_missing"
+            )
         return None, None
 
     try:
@@ -62,8 +68,6 @@ def generate_tags_from_messages(
     from utils import save_diagnostic, is_diagnostic_mode, load_template
     from tag_manager import normalize_tags
 
-    prompt_seed_tags = normalize_tags(infer_tags_from_text(prompt_text, max_tags=4))
-
     # Get existing tags from playbook key_points
     existing_tags = []
     if playbook and "key_points" in playbook:
@@ -79,7 +83,7 @@ def generate_tags_from_messages(
     if not client:
         if is_diagnostic_mode():
             save_diagnostic("no client available for tagger", diagnostic_name)
-        return prompt_seed_tags, prompt_seed_tags
+        return [], []
 
     recent_messages = messages[-12:] if messages else []
     template = load_template("tagger.txt")
@@ -115,7 +119,7 @@ def generate_tags_from_messages(
         )
 
     if not response_text:
-        return prompt_seed_tags, prompt_seed_tags
+        return [], []
 
     if "```json" in response_text:
         start = response_text.find("```json") + 7
@@ -130,11 +134,24 @@ def generate_tags_from_messages(
 
     try:
         parsed = json.loads(json_text)
-        final_tags = normalize_tags(parsed.get("tags", []))
-        return final_tags, prompt_seed_tags
-    except json.JSONDecodeError:
-        # Return seed tags if JSON parsing fails
-        return prompt_seed_tags, prompt_seed_tags
+
+        # Handle both array format (["tag1", "tag2"]) and object format ({"tags": ["tag1", "tag2"]})
+        if isinstance(parsed, list):
+            # Direct array response from template
+            final_tags = normalize_tags(parsed)
+        elif isinstance(parsed, dict):
+            # Object response with tags field
+            final_tags = normalize_tags(parsed.get("tags", []))
+        else:
+            # Unexpected format
+            final_tags = normalize_tags([])
+
+        return final_tags, final_tags
+    except (json.JSONDecodeError, AttributeError) as e:
+        # Return empty tags if JSON parsing fails
+        if is_diagnostic_mode():
+            save_diagnostic(f"JSON parsing error in generate_tags_from_messages: {e}\nResponse: {response_text[:200]}...", "tagger_error")
+        return [], []
 
 
 def infer_tags_from_text(text: str, max_tags: int = 5) -> list[str]:
@@ -142,18 +159,38 @@ def infer_tags_from_text(text: str, max_tags: int = 5) -> list[str]:
     if not text:
         return []
 
-    # Simple keyword extraction based on common development terms
+    # Enhanced keyword mapping that includes existing playbook tags
     tech_terms = {
         "bug": ["bug", "error", "issue", "problem", "fix", "debug"],
         "feature": ["feature", "add", "implement", "create", "new"],
         "refactor": ["refactor", "cleanup", "improve", "optimize"],
-        "test": ["test", "testing", "unit test", "coverage"],
+        "test": ["test", "testing", "unit test", "coverage", "verification"],
         "api": ["api", "endpoint", "route", "controller"],
-        "ui": ["ui", "frontend", "interface", "component"],
+        "ui": ["ui", "frontend", "interface", "component", "user-interface"],
         "database": ["database", "db", "sql", "query"],
         "config": ["config", "settings", "environment"],
         "deploy": ["deploy", "deployment", "release"],
-        "security": ["security", "auth", "permission", "vulnerability"],
+        "security": ["security", "auth", "authentication", "permission", "vulnerability"],
+        # Existing playbook tags
+        "documentation": ["documentation", "docs", "readme", "guide"],
+        "analysis": ["analysis", "analyze", "review", "examine"],
+        "accuracy": ["accuracy", "correctness", "precision"],
+        "i18n": ["i18n", "international", "localization", "locale", "translation"],
+        "sync": ["sync", "synchronization", "synchronize"],
+        "updates": ["updates", "update", "upgrade"],
+        "maintenance": ["maintenance", "maintain", "upkeep"],
+        "performance": ["performance", "optimize", "speed", "fast", "slow"],
+        "metrics": ["metrics", "measurement", "monitoring"],
+        "git": ["git", "commit", "branch", "merge", "repository"],
+        "workflow": ["workflow", "process", "pipeline"],
+        "architecture": ["architecture", "design", "structure"],
+        "error-handling": ["error", "exception", "handling", "try", "catch"],
+        "user-guidance": ["guidance", "help", "instruction"],
+        "guidance": ["guidance", "help", "instruction"],
+        "features": ["features", "capability", "functionality"],
+        "timeliness": ["timeliness", "time", "deadline", "schedule"],
+        "playbook": ["playbook", "play", "save"],
+        "save": ["save", "store", "persist"],
     }
 
     text_lower = text.lower()
@@ -169,12 +206,16 @@ def infer_tags_from_text(text: str, max_tags: int = 5) -> list[str]:
 
 
 def generate_keypoint_name(existing_names: set) -> str:
-    """Generate a unique keypoint name."""
-    base = "keypoint"
-    counter = 1
-    while f"{base}_{counter}" in existing_names:
-        counter += 1
-    return f"{base}_{counter}"
+    """Generate a unique keypoint name in kpt_001 format."""
+    max_num = 0
+    for name in existing_names:
+        if name.startswith("kpt_"):
+            try:
+                num = int(name.split("_")[1])
+                max_num = max(max_num, num)
+            except (IndexError, ValueError):
+                continue
+    return f"kpt_{max_num + 1:03d}"
 
 
 async def extract_keypoints(

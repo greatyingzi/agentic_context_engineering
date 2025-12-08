@@ -9,6 +9,7 @@ from common import (
     load_transcript,
     generate_tags_from_messages,
     select_relevant_keypoints,
+    load_template,
 )
 
 
@@ -28,13 +29,18 @@ def main():
         except Exception:
             messages = []
 
-    tags, prompt_tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)
-    selected_key_points = select_relevant_keypoints(
-        playbook, tags, limit=6, prompt_tags=prompt_tags, only_adjustable=only_adjustable
-    )
-    context = format_playbook(playbook, key_points=selected_key_points, tags=tags)
+    tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)[0]
 
-    if not context:
+    selected_key_points = select_relevant_keypoints(
+        playbook, tags, limit=6, only_adjustable=only_adjustable
+    )
+    key_points_text = format_playbook(playbook, key_points=selected_key_points)
+
+    # Use playbook template for proper context framing
+    template = load_template("playbook.txt")
+    context = template.format(key_points=key_points_text)
+
+    if not context.strip():
         print(json.dumps({}), flush=True)
         sys.exit(0)
 
@@ -42,10 +48,9 @@ def main():
         diagnostic_payload = {
             "session_id": session_id,
             "prompt": prompt_text,
-            "tags": tags,
-            "prompt_tags": prompt_tags,
+            "tags": tags,  # Final generated/selected tags
             "selected": [kp.get("name") for kp in selected_key_points],
-            "context": context,
+            "context": context,  # Final context to be injected
         }
         save_diagnostic(json.dumps(diagnostic_payload, indent=2, ensure_ascii=False), "user_prompt_inject")
 

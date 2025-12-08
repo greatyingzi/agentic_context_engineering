@@ -36,8 +36,9 @@ def normalize_tags(tags: Optional[list[str]], max_tags: int = 6) -> list[str]:
 
 
 def get_tag_statistics_path() -> Path:
-    user_claude_dir = Path(os.getenv("CLAUDE_CONFIG_DIR", os.path.expanduser("~/.claude")))
-    return user_claude_dir / ".diagnostics" / "tag_statistics.json"
+    """Get path to tag statistics JSON file in project's diagnostic directory."""
+    project_dir = Path.cwd()
+    return project_dir / ".claude" / "diagnostic" / "tag_statistics.json"
 
 
 def load_tag_statistics() -> dict:

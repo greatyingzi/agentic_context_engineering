@@ -5,7 +5,7 @@ import sys
 import asyncio
 from typing import Optional
 
-from utils import load_transcript
+from utils import load_transcript, load_settings
 from playbook_manager import (
     load_playbook,
     save_playbook,
@@ -13,7 +13,6 @@ from playbook_manager import (
 )
 from llm_client import extract_keypoints
 from session_manager import clear_session
-from tag_manager import load_settings
 
 
 class ExtractionHook:
