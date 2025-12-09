@@ -165,8 +165,12 @@ def load_playbook() -> dict:
         return {"version": "1.0", "last_updated": None, "key_points": []}
 
 
-def save_playbook(playbook: dict):
-    """Save playbook to file with atomic write and formatting."""
+def save_playbook(playbook: dict) -> bool:
+    """Save playbook to file with atomic write and formatting.
+
+    Returns:
+        bool: True if save was successful, False otherwise
+    """
     from datetime import datetime
     try:
         from .utils.path_utils import get_project_dir
@@ -213,6 +217,7 @@ def save_playbook(playbook: dict):
             json.dump(payload, f, indent=2, ensure_ascii=False)
         # Atomic move
         temp_path.replace(playbook_path)
+        return True
     except Exception as e:
         # Clean up temp file if something goes wrong
         if temp_path.exists():
@@ -220,7 +225,8 @@ def save_playbook(playbook: dict):
                 temp_path.unlink()
             except:
                 pass
-        raise e
+        # Return False instead of raising to allow caller to handle
+        return False
 
 
 def format_playbook(
