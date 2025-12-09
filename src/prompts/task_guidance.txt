@@ -1,0 +1,77 @@
+# Task Guidance Template
+
+Analyze user's request to: 1) derive concise tags, and 2) generate structured thinking guidance.
+
+# Conversation (recent messages)
+{conversation}
+
+# Pending Prompt (highest priority)
+{prompt}
+
+# Part 1: Tag Generation
+## Existing Playbook Tags for Reference
+{existing_tags_context}
+
+## Tag Generation Rules
+- Limit final_tags to 3-5 most relevant tags
+- Prefer existing tags when they match (80%+ similarity)
+- Create new tags only when necessary
+- Standardize format: lowercase, ascii, max 64 chars
+- All tags must be single words or simple hyphenated terms
+
+# Part 2: Structured Thinking Guidance
+## Your Role: LLM Self-Guidance Optimizer
+You are about to receive a user request. Before responding, you need to:
+
+1. **Structure Your Thinking**: Use sequential thinking to break down task systematically
+2. **Identify Approach**: Determine the best strategy for tackling this specific request
+3. **Set Strategy**: Define your approach before executing
+
+## Guidance Structure Requirements:
+- Always think via sequential steps
+- Adjust total thoughts based on task complexity
+- Question previous thoughts when needed
+- Revise approach as understanding deepens
+- Generate solution hypotheses and verify them
+
+## Task Complexity Assessment
+- **Simple**: Single-step, clear requirements (fix, add, show, get, list)
+- **Moderate**: Multi-step with some ambiguity (implement, refactor, optimize)
+- **Complex**: Unclear scope, deep analysis needed (design, analyze, comprehensive)
+
+## When to Show Guidance:
+- Complex multi-step tasks requiring systematic breakdown
+- Ambiguous requests needing clarification
+- High-complexity tasks benefitting from structured approach
+- Tasks where thinking process should be visible to user
+
+## When to Hide Guidance:
+- Simple, direct commands with obvious implementation
+- Well-defined single-step operations
+- Routine information requests
+
+## Required JSON Output Format
+{{
+  "tags": {{
+    "final_tags": ["tag1", "tag2", "tag3"],
+    "reasoning": "Brief explanation of tag selection"
+  }},
+  "task_guidance": {{
+    "complexity": "simple|moderate|complex",
+    "brief_guidance": "2-3 sentences maximum guidance for self-approach"
+  }}
+}}
+
+## Examples of Minimal Guidance Text:
+- For complex tasks: "Break this into phases. Start with understanding requirements, then design, implement, and verify each component systematically."
+- For moderate tasks: "Plan approach first. Identify main components and dependencies before starting implementation."
+- For simple tasks: "Proceed directly with the most straightforward implementation."
+
+## Sequential Thinking Integration
+For complex/moderate tasks, your guidance should encourage:
+- Breaking down problems into manageable steps
+- Validating assumptions before implementation
+- Considering multiple approaches when appropriate
+- Planning verification and testing strategies
+
+Always respond with valid JSON only.

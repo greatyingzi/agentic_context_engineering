@@ -7,10 +7,23 @@ from common import (
     is_diagnostic_mode,
     save_diagnostic,
     load_transcript,
-    generate_tags_from_messages,
+    generate_task_guidance,
     select_relevant_keypoints,
     load_template,
 )
+
+
+def format_guidance_for_user(guidance_result: dict) -> str:
+    """Format the LLM-generated task guidance into user-friendly context"""
+
+    brief_guidance = guidance_result.get("brief_guidance", "")
+
+    # If no guidance text, return empty string
+    if not brief_guidance.strip():
+        return ""
+
+    # Simple format showing only core reminder
+    return f"### 💡 Task Guidance\n{brief_guidance}"
 
 
 def main():
@@ -28,7 +41,20 @@ def main():
         except Exception:
             messages = []
 
-    tags, prompt_tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)
+    # 使用新的任务引导函数
+    result = generate_task_guidance(
+        messages, prompt_text, playbook=playbook, diagnostic_name="task_guidance"
+    )
+
+    tags_data = result.get("tags", {})
+    tags = tags_data.get("final_tags", [])
+    prompt_tags = tags_data.get("seed_tags", [])
+
+    guidance_result = result.get("task_guidance", {})
+
+    # 格式化引导结果用于用户显示
+    guidance_text = format_guidance_for_user(guidance_result)
+
     selected_key_points = select_relevant_keypoints(
         playbook, tags, limit=6, prompt_tags=prompt_tags
     )
@@ -38,6 +64,10 @@ def main():
         print(json.dumps({}), flush=True)
         sys.exit(0)
 
+    # 如果有引导结果，将其添加到上下文前面
+    if guidance_text:
+        context = guidance_text + "\n\n" + context
+
     if is_diagnostic_mode():
         diagnostic_payload = {
             "session_id": session_id,
@@ -45,6 +75,7 @@ def main():
             "tags": tags,  # Final generated/selected tags
             "selected": [kp.get("name") for kp in selected_key_points],
             "context": context,  # Final context to be injected
+            "task_guidance": guidance_result
         }
         save_diagnostic(json.dumps(diagnostic_payload, indent=2, ensure_ascii=False), "user_prompt_inject")
 
