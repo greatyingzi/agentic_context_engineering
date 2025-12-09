@@ -26,6 +26,16 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
+# Import file utilities
+try:
+    from .file_utils import load_transcript, load_template
+except ImportError:
+    # Fallback for direct execution or testing
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from file_utils import load_transcript, load_template
+
 
 
 def is_first_message(session_id: str) -> bool:
@@ -569,55 +579,6 @@ def select_relevant_keypoints(
         ),
     )
     return sorted_pool[:limit]
-
-
-def load_transcript(transcript_path: str) -> list[dict]:
-    conversations = []
-
-    with open(transcript_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-
-            entry = json.loads(line)
-
-            if entry.get("type") not in ["user", "assistant"]:
-                continue
-            if entry.get("isMeta") or entry.get("isVisibleInTranscriptOnly"):
-                continue
-
-            message = entry.get("message", {})
-            role = message.get("role")
-            content = message.get("content", "")
-
-            if not role or not content:
-                continue
-
-            if isinstance(content, str) and (
-                "<command-name>" in content or "<local-command-stdout>" in content
-            ):
-                continue
-
-            if isinstance(content, list):
-                text_parts = [
-                    item.get("text", "")
-                    for item in content
-                    if isinstance(item, dict) and item.get("type") == "text"
-                ]
-                if text_parts:
-                    conversations.append(
-                        {"role": role, "content": "\n".join(text_parts)}
-                    )
-            else:
-                conversations.append({"role": role, "content": content})
-
-    return conversations
-
-
-def load_template(template_name: str) -> str:
-    template_path = get_user_claude_dir() / "prompts" / template_name
-    with open(template_path, "r", encoding="utf-8") as f:
-        return f.read()
 
 
 def get_anthropic_client() -> Tuple[Optional["anthropic.Anthropic"], Optional[str]]:
