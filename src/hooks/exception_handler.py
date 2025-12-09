@@ -19,11 +19,44 @@ class GlobalExceptionHandler:
         self.install_dir = Path.home() / ".claude"
         self.log_dir = self.install_dir / "logs"
         self.log_file = self.log_dir / "exceptions.log"
+        self.max_entries = 500  # Simple limit: keep last 500 exceptions
         self._ensure_log_directory()
 
     def _ensure_log_directory(self):
         """Ensure log directory exists."""
         self.log_dir.mkdir(parents=True, exist_ok=True)
+
+    def _enforce_entry_limit(self):
+        """Simple entry limit: keep only the last N entries."""
+        if not self.log_file.exists():
+            return
+
+        try:
+            # Read and split entries
+            with open(self.log_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            entries = content.split("-" * 80)
+            # Filter out empty entries
+            entries = [entry.strip() for entry in entries if entry.strip()]
+
+            # If under limit, do nothing
+            if len(entries) <= self.max_entries:
+                return
+
+            # Keep only the last N entries
+            entries_to_keep = entries[-self.max_entries:]
+
+            # Write back the kept entries
+            with open(self.log_file, "w", encoding="utf-8") as f:
+                for entry in entries_to_keep:
+                    f.write(entry + "\n")
+                    f.write("-" * 80 + "\n")
+
+        except Exception as e:
+            # If anything goes wrong, just continue with logging
+            # Don't let cleanup prevent error logging
+            pass
 
     def log_exception(self,
                      exception: Exception,
@@ -62,6 +95,9 @@ class GlobalExceptionHandler:
             "context": context or {},
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         }
+
+        # Check and enforce simple entry limit
+        self._enforce_entry_limit()
 
         # Write to log file
         try:
