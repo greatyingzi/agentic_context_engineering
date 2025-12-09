@@ -12,12 +12,14 @@ import threading
 # Import path utilities
 try:
     from .utils.path_utils import get_project_dir, get_user_claude_dir, is_diagnostic_mode, save_diagnostic
+    from .utils.tag_utils import normalize_tags, infer_tags_from_text
 except ImportError:
     # Fallback for direct execution or testing
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))
     from utils.path_utils import get_project_dir, get_user_claude_dir, is_diagnostic_mode, save_diagnostic
+    from utils.tag_utils import normalize_tags, infer_tags_from_text
 
 try:
     import anthropic
@@ -55,32 +57,6 @@ def clear_session():
     session_file = get_project_dir() / ".claude" / "last_session.txt"
     if session_file.exists():
         session_file.unlink()
-
-
-def normalize_tags(tags: Optional[list[str]], max_tags: int = 6) -> list[str]:
-    """Normalize tag list to lowercase unique values with a soft cap."""
-    normalized = []
-    seen = set()
-
-    tag_list = [tags] if isinstance(tags, str) else (tags or [])
-
-    for tag in tag_list:
-        if not isinstance(tag, str):
-            continue
-        clean = tag.strip().lower()
-        # enforce ascii-only tags to keep output in English
-        try:
-            clean.encode("ascii")
-        except UnicodeEncodeError:
-            continue
-        if not clean or clean in seen:
-            continue
-        normalized.append(clean[:64])
-        seen.add(clean)
-        if len(normalized) >= max_tags:
-            break
-
-    return normalized
 
 
 # Global variables for sentence transformer model (lazy loading)
@@ -187,122 +163,7 @@ def find_similar_tags(target_tag: str, existing_tags: List[str], threshold: floa
     return similar_tags
 
 
-def get_tag_statistics_path() -> Path:
-    return get_project_dir() / ".claude" / "tag_statistics.json"
-
-
-def load_tag_statistics() -> dict:
-    """Load tag statistics from separate JSON file."""
-    stats_path = get_tag_statistics_path()
-
-    if not stats_path.exists():
-        return {
-            "version": "1.0",
-            "last_updated": None,
-            "total_tags": 0,
-            "total_usage": 0,
-            "tags": {}
-        }
-
-    try:
-        with open(stats_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {
-            "version": "1.0",
-            "last_updated": None,
-            "total_tags": 0,
-            "total_usage": 0,
-            "tags": {}
-        }
-
-
-def save_tag_statistics(stats: dict):
-    """Save tag statistics to separate JSON file."""
-    stats_path = get_tag_statistics_path()
-    stats_path.parent.mkdir(parents=True, exist_ok=True)
-
-    stats["last_updated"] = datetime.now().isoformat()
-
-    with open(stats_path, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2, ensure_ascii=False)
-
-
-def update_tag_statistics(stats: dict, new_tags: List[str]) -> dict:
-    """Update tag statistics with new tags and their usage statistics."""
-    if "tags" not in stats:
-        stats["tags"] = {}
-    if "total_usage" not in stats:
-        stats["total_usage"] = 0
-    if "total_tags" not in stats:
-        stats["total_tags"] = 0
-    if "last_updated" not in stats:
-        stats["last_updated"] = None
-
-    tags_dict = stats["tags"]
-
-    for tag in new_tags:
-        tag_key = tag.lower()
-        if tag_key not in tags_dict:
-            tags_dict[tag_key] = {
-                "canonical": tag,
-                "usage_count": 0,
-                "first_used": datetime.now().isoformat(),
-                "last_used": None
-            }
-            stats["total_tags"] += 1
-
-        # Update usage statistics
-        tags_dict[tag_key]["usage_count"] += 1
-        tags_dict[tag_key]["last_used"] = datetime.now().isoformat()
-        stats["total_usage"] += 1
-
-    stats["last_updated"] = datetime.now().isoformat()
-
-    return stats
-
-
 MAX_KEYPOINTS = 250  # hard cap to keep playbook manageable
-
-
-def infer_tags_from_text(text: str, max_tags: int = 5) -> list[str]:
-    """Heuristic tag extraction when no explicit tags are provided."""
-    stopwords = {
-        "the",
-        "this",
-        "that",
-        "with",
-        "from",
-        "into",
-        "your",
-        "their",
-        "have",
-        "having",
-        "using",
-        "use",
-        "used",
-        "for",
-        "and",
-        "when",
-        "while",
-        "after",
-        "before",
-        "code",
-        "error",
-        "issue",
-        "fix",
-        "task",
-    }
-    words = re.findall(r"[a-zA-Z][a-zA-Z0-9_\-]{2,}", text.lower())
-    tags = []
-    for word in words:
-        if word in stopwords or word.isdigit():
-            continue
-        if word not in tags:
-            tags.append(word)
-        if len(tags) >= max_tags:
-            break
-    return tags
 
 
 def generate_keypoint_name(existing_names: set) -> str:

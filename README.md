@@ -56,7 +56,7 @@ The system has undergone a major architectural refactoring from monolithic to mo
 common.py (Compatibility Layer)
 ├── utils.py              # Basic utilities and diagnostics
 ├── session_manager.py    # Session state management
-├── tag_manager.py        # Tag normalization and statistics
+├── tag_manager.py        # Tag normalization and management
 ├── llm_client.py        # LLM client and intelligent analysis
 ├── playbook_manager.py   # Knowledge base management
 └── extraction_hook_base.py  # Hook base class
@@ -234,7 +234,7 @@ Customize in `~/.claude/settings.json`:
 │   │   ├── common.py               # Backward compatibility layer
 │   │   ├── utils.py                # Basic utilities and diagnostics
 │   │   ├── session_manager.py      # Session state management
-│   │   ├── tag_manager.py          # Tag normalization and statistics
+│   │   ├── tag_manager.py          # Tag normalization and management
 │   │   ├── llm_client.py          # LLM client and intelligent analysis
 │   │   ├── playbook_manager.py    # Knowledge base management
 │   │   ├── extraction_hook_base.py # Hook base class
@@ -256,7 +256,7 @@ Customize in `~/.claude/settings.json`:
 
 - **utils.py**: Path management, diagnostic support, data loading
 - **session_manager.py**: Session tracking and first message detection
-- **tag_manager.py**: Tag normalization, statistics, and deduplication
+- **tag_manager.py**: Tag normalization and management
 - **llm_client.py**: Anthropic client, intelligent tag generation, semantic analysis
 - **playbook_manager.py**: Knowledge structure validation, persistence, selection
 - **extraction_hook_base.py**: Base class for all hook implementations
@@ -284,7 +284,7 @@ Customize in `~/.claude/settings.json`:
 
 - **Dependency Removal**: Eliminated heavy external dependencies
 - **Built-in Semantic Analysis**: LLM-powered similarity detection
-- **Smart Caching**: Session and tag statistics caching
+- **Smart Caching**: Session and knowledge caching
 - **Efficient Module Design**: Clear separation reduces overhead
 
 ## 🎯 Usage Scenarios
@@ -431,4 +431,4 @@ After using ACE, Claude Code will:
 
 ## 📄 License
 
-MIT License
+MIT License# Test change to README.md only
