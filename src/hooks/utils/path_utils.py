@@ -8,11 +8,11 @@ from pathlib import Path
 
 
 def get_project_dir() -> Path:
-    """Get the project directory from environment or fallback to home."""
+    """Get the project directory from environment or current working directory."""
     project_dir = os.getenv("CLAUDE_PROJECT_DIR")
     if project_dir:
         return Path(project_dir)
-    return Path.home()
+    return Path.cwd()
 
 
 def get_user_claude_dir() -> Path:
