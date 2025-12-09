@@ -6,8 +6,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
-import math
-import threading
 
 # Import path utilities
 try:
@@ -28,13 +26,6 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
-# For semantic similarity calculation
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 
 def is_first_message(session_id: str) -> bool:
@@ -59,46 +50,6 @@ def clear_session():
         session_file.unlink()
 
 
-# Global variables for sentence transformer model (lazy loading)
-_sentence_model = None
-_model_lock = threading.Lock()
-
-
-def get_sentence_model():
-    """Thread-safe lazy loading of sentence transformer model."""
-    global _sentence_model
-    if _sentence_model is None:
-        with _model_lock:
-            if _sentence_model is None and SENTENCE_TRANSFORMERS_AVAILABLE:
-                try:
-                    # Use a lightweight multilingual model
-                    _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-                except Exception as e:
-                    # Fallback if model loading fails
-                    print(f"Warning: Failed to load sentence transformer model: {e}", file=sys.stderr)
-                    _sentence_model = False
-    return _sentence_model
-
-
-def calculate_semantic_similarity(text1: str, text2: str) -> float:
-    """Calculate semantic similarity between two texts using sentence transformers.
-    Returns cosine similarity score between 0 and 1."""
-    model = get_sentence_model()
-    if not model:
-        # Fallback to lexical similarity if semantic model unavailable
-        return calculate_lexical_similarity(text1, text2)
-
-    try:
-        # Encode texts to vectors
-        embeddings = model.encode([text1, text2])
-        # Calculate cosine similarity
-        cos_sim = np.dot(embeddings[0], embeddings[1]) / (
-            np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])
-        )
-        return float(cos_sim)
-    except Exception:
-        # Fallback to lexical similarity on error
-        return calculate_lexical_similarity(text1, text2)
 
 
 def calculate_lexical_similarity(text1: str, text2: str) -> float:
@@ -143,7 +94,7 @@ def calculate_lexical_similarity(text1: str, text2: str) -> float:
 
 
 def find_similar_tags(target_tag: str, existing_tags: List[str], threshold: float = 0.8) -> List[Tuple[str, float]]:
-    """Find tags that are semantically similar to the target tag.
+    """Find tags that are lexically similar to the target tag.
     Returns list of (tag, similarity_score) tuples above threshold."""
     similar_tags = []
 
@@ -153,8 +104,8 @@ def find_similar_tags(target_tag: str, existing_tags: List[str], threshold: floa
             similar_tags.append((tag, 1.0))
             continue
 
-        # Calculate semantic similarity
-        similarity = calculate_semantic_similarity(target_tag, tag)
+        # Calculate lexical similarity
+        similarity = calculate_lexical_similarity(target_tag, tag)
         if similarity >= threshold:
             similar_tags.append((tag, similarity))
 
