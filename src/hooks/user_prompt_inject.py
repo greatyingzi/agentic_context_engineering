@@ -177,7 +177,7 @@ def generate_context_aware_guidance(
     kpts_context = ""
     if matched_keypoints:
         kpts_context = "\n".join([
-            f"- {kp.get('text', '')[:200]}..."
+            f"- {kp.get('text', '')}"
             for kp in matched_keypoints[:MAX_CONTEXT_KEYPOINTS]  # Limit to configured number for context
         ])
 
