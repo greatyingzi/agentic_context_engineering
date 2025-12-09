@@ -9,6 +9,16 @@ from typing import Optional, Tuple, Dict, List
 import math
 import threading
 
+# Import path utilities
+try:
+    from .utils.path_utils import get_project_dir, get_user_claude_dir, is_diagnostic_mode, save_diagnostic
+except ImportError:
+    # Fallback for direct execution or testing
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from utils.path_utils import get_project_dir, get_user_claude_dir, is_diagnostic_mode, save_diagnostic
+
 try:
     import anthropic
 
@@ -23,34 +33,6 @@ try:
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-
-def get_project_dir() -> Path:
-    project_dir = os.getenv("CLAUDE_PROJECT_DIR")
-    if project_dir:
-        return Path(project_dir)
-    return Path.home()
-
-
-def get_user_claude_dir() -> Path:
-    home = Path.home()
-    return home / ".claude"
-
-
-def is_diagnostic_mode() -> bool:
-    flag_file = get_project_dir() / ".claude" / "diagnostic_mode"
-    return flag_file.exists()
-
-
-def save_diagnostic(content: str, name: str):
-    diagnostic_dir = get_project_dir() / ".claude" / "diagnostic"
-    diagnostic_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filepath = diagnostic_dir / f"{timestamp}_{name}.txt"
-
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
 
 
 def is_first_message(session_id: str) -> bool:
