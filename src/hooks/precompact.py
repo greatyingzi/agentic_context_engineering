@@ -9,34 +9,40 @@ from common import (
     extract_keypoints,
     update_playbook_data,
     clear_session,
+    get_exception_handler,
 )
 
 
 async def main():
-    input_data = json.load(sys.stdin)
+    handler = get_exception_handler()
 
-    transcript_path = input_data.get("transcript_path")
-    messages = load_transcript(transcript_path)
+    try:
+        input_data = json.load(sys.stdin)
+        session_id = input_data.get("session_id", "unknown")
+        transcript_path = input_data.get("transcript_path")
 
-    if not messages:
-        sys.exit(0)
+        messages = load_transcript(transcript_path)
 
-    playbook = load_playbook()
-    extraction_result = await extract_keypoints(
-        messages, playbook, "precompact_reflection"
-    )
-    playbook = update_playbook_data(playbook, extraction_result)
-    save_playbook(playbook)
+        if not messages:
+            sys.exit(0)
 
-    clear_session()
+        playbook = load_playbook()
+        extraction_result = await extract_keypoints(
+            messages, playbook, "precompact_reflection"
+        )
+        playbook = update_playbook_data(playbook, extraction_result)
+        save_playbook(playbook)
+
+        clear_session()
+
+    except Exception as e:
+        # Use global exception handler for consistent error logging and user feedback
+        context_data = {
+            "input_data": input_data if 'input_data' in locals() else "Unable to capture",
+            "hook_stage": "main_execution"
+        }
+        handler.handle_and_exit(e, "precompact", context_data, session_id if 'session_id' in locals() else None)
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc(file=sys.stderr)
-        sys.exit(1)
+    asyncio.run(main())

@@ -10,6 +10,7 @@ from common import (
     generate_task_guidance,
     select_relevant_keypoints,
     load_template,
+    get_exception_handler,
 )
 
 
@@ -27,76 +28,79 @@ def format_guidance_for_user(guidance_result: dict) -> str:
 
 
 def main():
-    input_data = json.load(sys.stdin)
-    session_id = input_data.get("session_id", "unknown")
-    prompt_text = input_data.get("prompt", "")
-    transcript_path = input_data.get("transcript_path")
+    handler = get_exception_handler()
 
-    playbook = load_playbook()
+    try:
+        input_data = json.load(sys.stdin)
+        session_id = input_data.get("session_id", "unknown")
+        prompt_text = input_data.get("prompt", "")
+        transcript_path = input_data.get("transcript_path")
 
-    messages = []
-    if transcript_path:
-        try:
-            messages = load_transcript(transcript_path)
-        except Exception:
-            messages = []
+        playbook = load_playbook()
 
-    # 使用新的任务引导函数
-    result = generate_task_guidance(
-        messages, prompt_text, playbook=playbook, diagnostic_name="task_guidance"
-    )
+        messages = []
+        if transcript_path:
+            try:
+                messages = load_transcript(transcript_path)
+            except Exception:
+                messages = []
 
-    tags_data = result.get("tags", {})
-    tags = tags_data.get("final_tags", [])
-    prompt_tags = tags_data.get("seed_tags", [])
+        # 使用新的任务引导函数
+        result = generate_task_guidance(
+            messages, prompt_text, playbook=playbook, diagnostic_name="task_guidance"
+        )
 
-    guidance_result = result.get("task_guidance", {})
+        tags_data = result.get("tags", {})
+        tags = tags_data.get("final_tags", [])
+        prompt_tags = tags_data.get("seed_tags", [])
 
-    # 格式化引导结果用于用户显示
-    guidance_text = format_guidance_for_user(guidance_result)
+        guidance_result = result.get("task_guidance", {})
 
-    selected_key_points = select_relevant_keypoints(
-        playbook, tags, limit=6, prompt_tags=prompt_tags
-    )
-    context = format_playbook(playbook, key_points=selected_key_points, tags=tags)
+        # 格式化引导结果用于用户显示
+        guidance_text = format_guidance_for_user(guidance_result)
 
-    if not context.strip():
-        print(json.dumps({}), flush=True)
-        sys.exit(0)
+        selected_key_points = select_relevant_keypoints(
+            playbook, tags, limit=6, prompt_tags=prompt_tags
+        )
+        context = format_playbook(playbook, key_points=selected_key_points, tags=tags)
 
-    # 如果有引导结果，将其添加到上下文前面
-    if guidance_text:
-        context = guidance_text + "\n\n" + context
+        if not context.strip():
+            print(json.dumps({}), flush=True)
+            sys.exit(0)
 
-    if is_diagnostic_mode():
-        diagnostic_payload = {
-            "session_id": session_id,
-            "prompt": prompt_text,
-            "tags": tags,  # Final generated/selected tags
-            "selected": [kp.get("name") for kp in selected_key_points],
-            "context": context,  # Final context to be injected
-            "task_guidance": guidance_result
+        # 如果有引导结果，将其添加到上下文前面
+        if guidance_text:
+            context = guidance_text + "\n\n" + context
+
+        if is_diagnostic_mode():
+            diagnostic_payload = {
+                "session_id": session_id,
+                "prompt": prompt_text,
+                "tags": tags,  # Final generated/selected tags
+                "selected": [kp.get("name") for kp in selected_key_points],
+                "context": context,  # Final context to be injected
+                "task_guidance": guidance_result
+            }
+            save_diagnostic(json.dumps(diagnostic_payload, indent=2, ensure_ascii=False), "user_prompt_inject")
+
+        response = {
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": context,
+            }
         }
-        save_diagnostic(json.dumps(diagnostic_payload, indent=2, ensure_ascii=False), "user_prompt_inject")
 
-    response = {
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": context,
+        sys.stdout.reconfigure(encoding="utf-8")
+        print(json.dumps(response), flush=True)
+
+    except Exception as e:
+        # Use global exception handler for consistent error logging and user feedback
+        context_data = {
+            "input_data": input_data if 'input_data' in locals() else "Unable to capture",
+            "hook_stage": "main_execution"
         }
-    }
-
-    sys.stdout.reconfigure(encoding="utf-8")
-    print(json.dumps(response), flush=True)
+        handler.handle_and_exit(e, "user_prompt_inject", context_data, session_id if 'session_id' in locals() else None)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc(file=sys.stderr)
-        print(json.dumps({}), flush=True)
-        sys.exit(1)
+    main()

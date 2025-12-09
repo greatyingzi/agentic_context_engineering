@@ -64,6 +64,26 @@ except ImportError:
         select_relevant_keypoints
     )
 
+# Import exception handler
+try:
+    from .exception_handler import (
+        get_exception_handler,
+        hook_exception_wrapper,
+        log_hook_error,
+        get_log_file_path
+    )
+except ImportError:
+    # Fallback for direct execution or testing
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from exception_handler import (
+        get_exception_handler,
+        hook_exception_wrapper,
+        log_hook_error,
+        get_log_file_path
+    )
+
 
 
 def is_first_message(session_id: str) -> bool:
