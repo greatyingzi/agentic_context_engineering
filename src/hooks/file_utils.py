@@ -22,45 +22,57 @@ def load_transcript(transcript_path: str) -> list[dict]:
 
     Returns:
         List of conversation messages with role and content
+        Returns empty list if file doesn't exist or can't be read
     """
     conversations = []
 
-    with open(transcript_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
+    # Check if transcript file exists
+    transcript_file = Path(transcript_path)
+    if not transcript_file.exists():
+        return conversations
 
-            entry = json.loads(line)
+    try:
+        with open(transcript_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
 
-            if entry.get("type") not in ["user", "assistant"]:
-                continue
-            if entry.get("isMeta") or entry.get("isVisibleInTranscriptOnly"):
-                continue
+                entry = json.loads(line)
 
-            message = entry.get("message", {})
-            role = message.get("role")
-            content = message.get("content", "")
+                if entry.get("type") not in ["user", "assistant"]:
+                    continue
+                if entry.get("isMeta") or entry.get("isVisibleInTranscriptOnly"):
+                    continue
 
-            if not role or not content:
-                continue
+                message = entry.get("message", {})
+                role = message.get("role")
+                content = message.get("content", "")
 
-            if isinstance(content, str) and (
-                "<command-name>" in content or "<local-command-stdout>" in content
-            ):
-                continue
+                if not role or not content:
+                    continue
 
-            if isinstance(content, list):
-                text_parts = [
-                    item.get("text", "")
-                    for item in content
-                    if isinstance(item, dict) and item.get("type") == "text"
-                ]
-                if text_parts:
-                    conversations.append(
-                        {"role": role, "content": "\n".join(text_parts)}
-                    )
-            else:
-                conversations.append({"role": role, "content": content})
+                if isinstance(content, str) and (
+                    "<command-name>" in content or "<local-command-stdout>" in content
+                ):
+                    continue
+
+                if isinstance(content, list):
+                    text_parts = [
+                        item.get("text", "")
+                        for item in content
+                        if isinstance(item, dict) and item.get("type") == "text"
+                    ]
+                    if text_parts:
+                        conversations.append(
+                            {"role": role, "content": "\n".join(text_parts)}
+                        )
+                else:
+                    conversations.append({"role": role, "content": content})
+
+    except (json.JSONDecodeError, IOError, UnicodeDecodeError) as e:
+        # Log the error but don't crash - return empty conversations
+        # This allows hooks to continue gracefully even with corrupted transcript files
+        pass
 
     return conversations
 
