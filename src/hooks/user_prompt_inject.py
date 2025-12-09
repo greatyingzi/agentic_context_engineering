@@ -18,7 +18,6 @@ def main():
     session_id = input_data.get("session_id", "unknown")
     prompt_text = input_data.get("prompt", "")
     transcript_path = input_data.get("transcript_path")
-    only_adjustable = input_data.get("only_adjustable", False)  # New parameter
 
     playbook = load_playbook()
 
@@ -29,16 +28,11 @@ def main():
         except Exception:
             messages = []
 
-    tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)[0]
-
+    tags, prompt_tags = generate_tags_from_messages(messages, prompt_text, playbook=playbook)
     selected_key_points = select_relevant_keypoints(
-        playbook, tags, limit=6, only_adjustable=only_adjustable
+        playbook, tags, limit=6, prompt_tags=prompt_tags
     )
-    key_points_text = format_playbook(playbook, key_points=selected_key_points)
-
-    # Use playbook template for proper context framing
-    template = load_template("playbook.txt")
-    context = template.format(key_points=key_points_text)
+    context = format_playbook(playbook, key_points=selected_key_points, tags=tags)
 
     if not context.strip():
         print(json.dumps({}), flush=True)
