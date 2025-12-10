@@ -84,7 +84,8 @@ def validate_playbook_structure(data: dict) -> bool:
                     return False
                 if 'risk_level' in kp and not isinstance(kp['risk_level'], (int, float)):
                     return False
-                if 'risk_level' in kp and not (-1 <= kp['risk_level'] <= 0):
+                # Risk is intentionally a signed score where positives mean higher risk.
+                if 'risk_level' in kp and not (-1 <= kp['risk_level'] <= 1):
                     return False
                 if 'innovation_level' in kp and not isinstance(kp['innovation_level'], (int, float)):
                     return False
@@ -234,7 +235,7 @@ def save_playbook(playbook: dict) -> bool:
 
         if "risk_level" not in item:
             item["risk_level"] = -0.5  # 默认中等风险
-        elif not isinstance(item["risk_level"], (int, float)) or not (-1 <= item["risk_level"] <= 0):
+        elif not isinstance(item["risk_level"], (int, float)) or not (-1 <= item["risk_level"] <= 1):
             # 如果值无效，重置为默认值
             item["risk_level"] = -0.5
 
