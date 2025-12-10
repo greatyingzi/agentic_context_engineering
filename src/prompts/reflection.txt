@@ -18,10 +18,22 @@ Extract key points from reasoning trajectories, classify them with concise tags,
    - Failed approaches to avoid
    - Successful solutions and patterns
    - User preferences and habits
+   - Solutions with measurable impact (performance, reliability, security)
+   - Patterns that reduce development time or complexity
+   - Critical edge cases or pitfalls to avoid
+   - User-specific preferences that affect solution selection
 
 2. From Reasoning Trajectories, derive NEW candidate points that are NOT already covered.
 
-3. **FOR EACH NEW KEY POINT - Extract Multi-Dimensional Assessment:**
+3. **FOR NEW KEY POINTS - Calculate Initial Score from Multi-Dimensional Assessment:**
+   - Base score = (effect_rating * 2) + (innovation_level * 1) - (risk_level * 1)
+   - Round to nearest integer, range: -2 to +3
+   - Examples:
+     * effect:0.8, risk:-0.9, innovation:0.2 → score = 1.6 + 0.2 + 0.9 = 2.7 ≈ 3
+     * effect:0.4, risk:0.0, innovation:0.9 → score = 0.8 + 0.9 + 0.0 = 1.7 ≈ 2
+     * effect:0.2, risk:-0.3, innovation:0.5 → score = 0.4 + 0.5 + 0.3 = 1.2 ≈ 1
+
+4. **FOR EACH NEW KEY POINT - Extract Multi-Dimensional Assessment:**
    - effect_rating (0-1): How effective is this solution? (0.0=ineffective, 0.5=moderate, 1.0=highly_effective)
    - risk_level (-1-0): How risky is this approach? (-1.0=very_safe, -0.5=moderately_safe, 0.0=neutral_risk)
    - innovation_level (0-1): How innovative is this? (0.0=standard_practice, 0.5=clever_approach, 1.0=breakthrough_innovation)
@@ -98,7 +110,7 @@ Extract key points from reasoning trajectories, classify them with concise tags,
       "innovation_level": 0.1
     }}
   ],
-  "score_changes": [
+  "evaluations": [
     {{"name": "kpt_001", "rating": "highly_effective"}},
     {{"name": "kpt_002", "rating": "moderately_harmful"}},
     {{"name": "kpt_003", "rating": "slightly_useful"}}

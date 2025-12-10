@@ -322,6 +322,11 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
     new_key_points = extraction_result.get("new_key_points", [])
     evaluations = extraction_result.get("evaluations", [])
 
+    # Handle both old "evaluations" and new "score_changes" field names for backward compatibility
+    if not evaluations:
+        score_changes = extraction_result.get("score_changes", [])
+        evaluations = score_changes  # Fallback to score_changes if evaluations is empty
+
     # Enhanced 7-level rating system for more granular feedback
     rating_delta = {
         "highly_effective": 3,
@@ -481,11 +486,16 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
             risk_level = item.get("risk_level", -0.5) if isinstance(item, dict) else -0.5
             innovation_level = item.get("innovation_level", 0.5) if isinstance(item, dict) else 0.5
 
+            # Calculate initial score from multi-dimensional assessment
+            initial_score = round(effect_rating * 2 + innovation_level * 1 - risk_level * 1)
+            # Clamp to reasonable range
+            initial_score = max(-2, min(3, initial_score))
+
             playbook["key_points"].append(
                 {
                     "name": name,
                     "text": text,
-                    "score": 0,
+                    "score": initial_score,  # Use calculated initial score
                     "tags": tags or infer_tags_from_text(text),
                     "pending": True,
                     "effect_rating": effect_rating,
