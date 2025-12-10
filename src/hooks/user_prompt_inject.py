@@ -134,6 +134,13 @@ def generate_tags_only(
     if not response_text:
         # Fallback to seed tags
         final_tags = prompt_seed_tags
+        if is_diagnostic_mode():
+            save_diagnostic(
+                f"EMPTY RESPONSE - LLM returned empty response\n\n"
+                f"Fall back to {len(prompt_seed_tags)} seed tags: {prompt_seed_tags}\n"
+                f"Prompt text preview: {prompt_text[:200]}...",
+                f"{diagnostic_name}_empty_response"
+            )
     else:
         # Parse JSON response using common function
         parsed = extract_json_from_response(response_text)
@@ -149,12 +156,30 @@ def generate_tags_only(
         else:
             # Fallback to seed tags
             llm_tags = prompt_seed_tags
+            if is_diagnostic_mode():
+                save_diagnostic(
+                    f"JSON PARSE FAILED - Could not parse LLM response\n\n"
+                    f"Response preview: {response_text[:500]}...\n\n"
+                    f"Fall back to {len(prompt_seed_tags)} seed tags: {prompt_seed_tags}",
+                    f"{diagnostic_name}_json_parse_failed"
+                )
 
         # Combine and normalize tags
         final_tags = normalize_tags(
             prompt_seed_tags + llm_tags, max_tags=MAX_TAGS_FINAL
         )
         final_tags = final_tags or prompt_seed_tags
+
+        # Final check: if still no tags, add diagnostic
+        if not final_tags and is_diagnostic_mode():
+            save_diagnostic(
+                f"NO TAGS GENERATED - All fallback strategies failed\n\n"
+                f"Seed tags: {prompt_seed_tags}\n"
+                f"LLM tags: {llm_tags}\n"
+                f"Combined (pre-normalization): {prompt_seed_tags + llm_tags}\n"
+                f"Final (post-normalization): {final_tags}",
+                f"{diagnostic_name}_no_final_tags"
+            )
 
     return {
         "tags": {
@@ -250,6 +275,14 @@ def generate_context_aware_guidance(
         )
 
     if not response_text:
+        if is_diagnostic_mode():
+            save_diagnostic(
+                f"EMPTY GUIDANCE RESPONSE - LLM returned empty response\n\n"
+                f"Matched keypoints: {len(matched_keypoints)} items\n"
+                f"Tags: {tags}\n"
+                f"Kpts context length: {len(kpts_context)} chars",
+                f"{diagnostic_name}_empty_response"
+            )
         return {"complexity": "moderate", "brief_guidance": ""}
     else:
         # Parse JSON response using common function
@@ -263,8 +296,18 @@ def generate_context_aware_guidance(
             if "complexity" not in guidance_result:
                 guidance_result["complexity"] = "moderate"
         else:
-            # Fallback to empty guidance
-            guidance_result = {"complexity": "moderate", "brief_guidance": ""}
+            if is_diagnostic_mode():
+                save_diagnostic(
+                    f"GUIDANCE JSON PARSE FAILED - Could not parse LLM response\n\n"
+                    f"Response preview: {response_text[:500]}...\n\n"
+                    f"Matched keypoints: {len(matched_keypoints)}\n"
+                    f"Tags: {tags}",
+                    f"{diagnostic_name}_json_parse_failed"
+                )
+            guidance_result = {
+                "complexity": "moderate",
+                "brief_guidance": "Failed to parse guidance response",
+            }
 
     return guidance_result
 
@@ -377,6 +420,18 @@ def main():
         )
 
         if not context.strip():
+            if is_diagnostic_mode():
+                save_diagnostic(
+                    f"EMPTY CONTEXT - All sections empty\n\n"
+                    f"Tags: {tags} (count: {len(tags)})\n"
+                    f"Selected keypoints: {len(selected_key_points)} items\n"
+                    f"Keypoint names: {[kp.get('name', 'NO_NAME') for kp in selected_key_points]}\n"
+                    f"Guidance result type: {type(guidance_result)}\n"
+                    f"Guidance brief: {guidance_result.get('brief_guidance', 'NO_BRIEF_GUIDANCE')[:200] if guidance_result else 'NO_GUIDANCE_RESULT'}\n"
+                    f"Temperature: {temperature}\n"
+                    f"Formatted context length: {len(context)} characters",
+                    "empty_context_analysis"
+                )
             print(json.dumps({}), flush=True)
             sys.exit(0)
 

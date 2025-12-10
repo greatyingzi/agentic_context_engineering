@@ -601,10 +601,33 @@ def select_relevant_keypoints(
 
     key_points = playbook.get("key_points", [])
     if not key_points:
+        # 如果playbook为空，记录诊断信息
+        import sys
+        from .utils.path_utils import is_diagnostic_mode, save_diagnostic
+
+        if is_diagnostic_mode():
+            save_diagnostic(
+                f"EMPTY PLAYBOOK - No key points found\n\n"
+                f"Playbook keys: {list(playbook.keys()) if playbook else 'PLAYBOOK_NONE'}\n"
+                f"Input tags: {tags or []}\n"
+                f"Temperature: {temperature}",
+                "select_relevant_empty_playbook"
+            )
         return []
 
     desired_tags = [t.lower() for t in tags or [] if isinstance(t, str)]
     prompt_tag_set = {t.lower() for t in (prompt_tags or [])}
+
+    # 如果没有desired_tags，记录诊断信息
+    if not desired_tags and is_diagnostic_mode():
+        save_diagnostic(
+            f"EMPTY DESIRED TAGS - No tags provided for matching\n\n"
+            f"Input tags parameter: {tags}\n"
+            f"Playbook has {len(key_points)} key points\n"
+            f"Temperature: {temperature}\n"
+            f"Will use temperature-based selection only",
+            "select_relevant_empty_tags"
+        )
 
     # Create text for context analysis
     all_tags_text = " ".join(desired_tags).lower()
