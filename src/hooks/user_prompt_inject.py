@@ -148,6 +148,10 @@ def generate_tags_only(
             "final_tags": final_tags,
             "seed_tags": prompt_seed_tags,
             "reasoning": "Tags generated in Phase 1"
+        },
+        "injection_settings": {
+            "temperature": parsed.get("injection_settings", {}).get("temperature", 0.5) if parsed else 0.5,
+            "reasoning": parsed.get("injection_settings", {}).get("reasoning", "Default temperature") if parsed else "Default temperature"
         }
     }
 
@@ -296,9 +300,13 @@ def main():
         tags = tags_data.get("final_tags", [])
         prompt_tags = tags_data.get("seed_tags", [])
 
-        # Match key points based on tags
+        # Extract temperature from injection settings
+        injection_settings = tags_result.get("injection_settings", {})
+        temperature = injection_settings.get("temperature", 0.5)
+
+        # Match key points based on tags with temperature
         selected_key_points = select_relevant_keypoints(
-            playbook, tags, limit=MAX_SELECTED_KEYPOINTS, prompt_tags=prompt_tags
+            playbook, tags, limit=MAX_SELECTED_KEYPOINTS, prompt_tags=prompt_tags, temperature=temperature
         )
 
         # === Phase 2: Generate context-aware guidance using matched key points ===

@@ -1,6 +1,6 @@
 # Task Guidance Template
 
-Analyze user's request to: 1) derive concise tags, and 2) generate structured thinking guidance.
+Analyze user's request to: 1) derive concise tags, 2) generate structured thinking guidance, and 3) assess task characteristics for optimal knowledge injection.
 
 # Conversation (recent messages)
 {conversation}
@@ -18,6 +18,21 @@ Analyze user's request to: 1) derive concise tags, and 2) generate structured th
 - Create new tags only when necessary
 - Standardize format: lowercase, ascii, max 64 chars
 - All tags must be single words or simple hyphenated terms
+
+# Part 2: Task Type Assessment for Knowledge Injection
+## Temperature Parameter (0.0-1.0)
+Assess the optimal knowledge injection temperature based on task characteristics:
+
+**Temperature Guidelines:**
+- 0.1-0.3: Emergency fixes, critical bugs, precise technical tasks - rely on verified knowledge only
+- 0.4-0.6: Routine development, moderate complexity - balance precision with exploration
+- 0.7-1.0: Learning, exploration, research, creative tasks - encourage diverse knowledge discovery
+
+**Temperature Selection Rules:**
+- Look for urgent keywords: "fix", "bug", "error", "urgent" → Use low temperature (0.1-0.3)
+- Look for exploratory keywords: "explore", "learn", "alternative", "research" → Use high temperature (0.7-1.0)
+- Consider task complexity: simple → 0.3, moderate → 0.5, complex → 0.7
+- Consider project stage: maintenance → 0.3, development → 0.6, innovation → 0.9
 
 # Part 2: Structured Thinking Guidance
 ## Your Role: Main Agent Orchestrator
@@ -68,6 +83,10 @@ You are about to receive a user request. Before responding, you need to:
   "tags": {{
     "final_tags": ["tag1", "tag2", "tag3"],
     "reasoning": "Brief explanation of tag selection"
+  }},
+  "injection_settings": {{
+    "temperature": 0.X,
+    "reasoning": "Brief explanation of temperature selection based on task characteristics"
   }},
   "task_guidance": {{
     "complexity": "simple|moderate|complex",
