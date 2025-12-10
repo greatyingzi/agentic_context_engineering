@@ -536,6 +536,9 @@ def select_relevant_keypoints(
     desired_tags = [t.lower() for t in tags or [] if isinstance(t, str)]
     prompt_tag_set = {t.lower() for t in (prompt_tags or [])}
 
+    # Create text for context analysis
+    all_tags_text = " ".join(desired_tags).lower()
+
     # Define clear classification boundaries
     HIGH_CONFIDENCE_THRESHOLD = 2.0
 
@@ -619,17 +622,22 @@ def select_relevant_keypoints(
             risk_level = kp.get("risk_level", -0.5)
             innovation_level = kp.get("innovation_level", 0.5)
 
+            # Context-aware parameter weights
+            effect_weight, innovation_weight, risk_threshold = _get_contextual_weights(
+                layer_type, all_tags_text
+            )
+
             if layer_type == "HIGH_CONFIDENCE":
                 # High confidence items get effectiveness boost
-                temp_multiplier += effect_rating * 0.3
+                temp_multiplier += effect_rating * effect_weight
                 # Risk reduction for proven items
-                if risk_level < -0.5:
+                if risk_level < risk_threshold:
                     temp_multiplier += 0.2
             else:
                 # Recommendations get innovation boost
-                temp_multiplier += innovation_level * 0.4
+                temp_multiplier += innovation_level * innovation_weight
                 # Risk awareness for new ideas
-                if risk_level > -0.2:
+                if risk_level > risk_threshold:
                     temp_multiplier *= 0.8
 
             # Store metadata for debugging
@@ -749,6 +757,56 @@ def apply_intelligent_filtering(kps: list[dict], temperature: float, limit: int)
         ]
 
     return filtered_kps
+
+
+def _get_contextual_weights(layer_type: str, all_tags_text: str) -> tuple[float, float, float]:
+    """
+    Get context-aware parameter weights based on detected context patterns.
+
+    Returns:
+        (effect_weight, innovation_weight, risk_threshold)
+    """
+    # Context detection patterns
+    urgent_indicators = ["fix", "bug", "error", "urgent", "critical", "broken"]
+    exploratory_indicators = ["explore", "learn", "research", "alternative", "innovative", "prototype", "experimental"]
+    production_indicators = ["production", "deploy", "release", "customer", "enterprise", "stable"]
+
+    # Detect contexts
+    urgent_context = any(indicator in all_tags_text for indicator in urgent_indicators)
+    exploratory_context = any(indicator in all_tags_text for indicator in exploratory_indicators)
+    production_context = any(indicator in all_tags_text for indicator in production_indicators)
+
+    # Default weights
+    default_effect_weight = 0.3
+    default_innovation_weight = 0.4
+    default_risk_threshold = -0.2
+
+    # Context-aware weight adjustments
+    if urgent_context:
+        # Urgent contexts prioritize proven effectiveness
+        if layer_type == "HIGH_CONFIDENCE":
+            return 0.5, 0.1, -0.3  # Heavy on effectiveness, very low risk tolerance
+        else:
+            return 0.2, 0.2, -0.6  # Favor proven solutions, extremely risk-averse
+
+    elif production_context:
+        # Production contexts balance effectiveness and innovation
+        if layer_type == "HIGH_CONFIDENCE":
+            return 0.4, 0.2, -0.4  # Emphasize proven effectiveness
+        else:
+            return 0.3, 0.3, -0.3  # Balanced but cautious
+
+    elif exploratory_context:
+        # Exploratory contexts prioritize innovation
+        if layer_type == "HIGH_CONFIDENCE":
+            return 0.2, 0.4, -0.1  # Less emphasis on past effectiveness
+        else:
+            return 0.1, 0.6, 0.2   # Strong innovation focus, risk-tolerant
+
+    else:
+        # Default balanced approach
+        return default_effect_weight, default_innovation_weight, default_risk_threshold
+
 
 def apply_adaptive_optimization(kps: list[dict], temperature: float, desired_tags: list[str]) -> list[dict]:
     """Phase 3: Adaptive optimization based on context"""
