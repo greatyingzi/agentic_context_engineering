@@ -434,4 +434,4 @@ After using ACE, Claude Code will:
 
 ## 📄 License
 
-MIT License# Test change to README.md only
+MIT License

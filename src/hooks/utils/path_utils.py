@@ -34,13 +34,19 @@ def is_diagnostic_mode() -> bool:
     return flag_file.exists()
 
 
+def _diagnostic_dirs() -> list[Path]:
+    """Primary diagnostics dir plus backward-compatible fallback."""
+    base = get_project_dir() / ".claude"
+    return [base / "diagnostics", base / "diagnostic"]
+
+
 def save_diagnostic(content: str, name: str):
     """Save diagnostic content to a timestamped file with automatic cleanup."""
     # 1. 先清理旧文件
     _cleanup_old_diagnostic_files()
 
     # 2. 准备保存新文件
-    diagnostic_dir = get_project_dir() / ".claude" / "diagnostic"
+    diagnostic_dir = _diagnostic_dirs()[0]
     diagnostic_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -58,14 +64,14 @@ def save_diagnostic(content: str, name: str):
 
 def _cleanup_old_diagnostic_files():
     """清理旧的诊断文件，控制数量和保留时间"""
-    diagnostic_dir = get_project_dir() / ".claude" / "diagnostic"
-    if not diagnostic_dir.exists():
-        return
+    diagnostic_dirs = _diagnostic_dirs()
 
-    # 获取所有诊断文件并按修改时间排序
     files = []
-    for pattern in ["*.txt", "*.log"]:
-        files.extend(diagnostic_dir.glob(pattern))
+    for diagnostic_dir in diagnostic_dirs:
+        if not diagnostic_dir.exists():
+            continue
+        for pattern in ["*.txt", "*.log"]:
+            files.extend(diagnostic_dir.glob(pattern))
 
     if not files:
         return
@@ -80,11 +86,9 @@ def _cleanup_old_diagnostic_files():
         for old_file in files_to_delete:
             try:
                 old_file.unlink()
-                print(f"已删除旧诊断文件: {old_file.name}")
-                # 从当前列表中移除
                 files.remove(old_file)
-            except Exception as e:
-                print(f"删除文件失败 {old_file}: {e}")
+            except Exception:
+                pass
 
     # 2. 按天数限制（基于更新后的文件列表）
     cutoff_time = datetime.now().timestamp() - (MAX_DIAGNOSTIC_DAYS * 24 * 3600)
@@ -93,15 +97,19 @@ def _cleanup_old_diagnostic_files():
         try:
             if f.stat().st_mtime < cutoff_time:
                 f.unlink()
-                print(f"已删除过期诊断文件: {f.name}")
-        except Exception as e:
-            print(f"删除过期文件失败 {f}: {e}")
+        except Exception:
+            pass
 
 
 def get_diagnostic_stats() -> dict:
     """获取诊断文件统计信息"""
-    diagnostic_dir = get_project_dir() / ".claude" / "diagnostic"
-    if not diagnostic_dir.exists():
+    diagnostic_dirs = _diagnostic_dirs()
+    diagnostic_dir = None
+    for candidate in diagnostic_dirs:
+        if candidate.exists():
+            diagnostic_dir = candidate
+            break
+    if diagnostic_dir is None:
         return {"total_files": 0, "total_size_kb": 0, "oldest_file": None, "newest_file": None}
 
     files = list(diagnostic_dir.glob("*.txt")) + list(diagnostic_dir.glob("*.log"))

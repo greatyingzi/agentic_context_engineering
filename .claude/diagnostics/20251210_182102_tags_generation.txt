@@ -1,0 +1,263 @@
+# TAGS-ONLY PROMPT
+# Task Guidance Template
+
+Analyze user's request to: 1) assess context continuity with current engineering work, 2) derive concise tags, 3) generate structured thinking guidance, and 4) assess task characteristics for optimal knowledge injection.
+
+## Core Principle: Engineering Context Protection
+**CRITICAL**: Your primary responsibility is maintaining engineering workflow continuity. While being responsive to all requests, you must proactively detect and manage context shifts that could fragment attention or derail ongoing work. Balance responsiveness with focus protection through intelligent guidance.
+
+# Conversation (recent messages)
+[
+  {
+    "role": "assistant",
+    "content": "## 🧠 **深度反思：重新优化实施策略**\n\n经过深入分析，我意识到之前的设计思路需要调整。让我重新制定一个**更简洁、更有效**的实施策略：\n\n### 💡 **核心洞察**\n\n现有代码已经非常优雅，问题不在于缺少复杂的动态系统，而在于**参数权重没有上下文感知**。\n\n**现在的问题：**\n```python\n# 固定权重，不区分上下文\ntemp_multiplier += effect_rating * 0.3   # 所有情况都是0.3\ntemp_multiplier += innovation_level * 0.4  # 所有情况都是0.4\n```\n\n**更聪明的解决方案：**\n```python\n# 上下文感知权重\neffect_weight = get_contextual_weight(effect_rating, context)\ninnovation_weight = get_contextual_weight(innovation_level, context)\n```\n\n### 🎯 **最优实施策略**\n\n**理念：最小改动，最大效果**\n\n不创建复杂的动态矩阵，而是在现有参数应用逻辑中加入**上下文感知权重函数**。\n"
+  },
+  {
+    "role": "assistant",
+    "content": "现在实现上下文感知权重函数：\n"
+  },
+  {
+    "role": "assistant",
+    "content": "让我查找正确的函数位置：\n"
+  },
+  {
+    "role": "assistant",
+    "content": "现在需要确保`_get_contextual_weights`函数能够获取到正确的参数。让我检查`select_relevant_keypoints`函数中的参数传递：\n"
+  },
+  {
+    "role": "assistant",
+    "content": "我需要在`select_relevant_keypoints`函数中添加`all_tags_text`变量：\n"
+  },
+  {
+    "role": "assistant",
+    "content": "现在让我创建一个测试脚本来验证新机制的有效性：\n"
+  },
+  {
+    "role": "user",
+    "content": "继续"
+  },
+  {
+    "role": "assistant",
+    "content": "用户在系统提醒中提到了A/B测试框架，并建议我使用build-tester代理来创建一个测试测试工具来比较使用和不使用`_get_contextual_weights`函数的输出质量。这是一个很好的建议。\n\n让我深度思考一下这个实施：\n\n## 🧠 **深度分析：A/B测试的价值**\n\n### 📊 **实施A/B测试的必要性**\n1. **量化改进效果** - 不只是\"感觉更好\"，而是具体数据证明\n2. **回归测试** - 确保新系统不破坏现有功能  \n3. **用户体验对比** - 比较知识选择的相关性和质量\n4. **性能监控** - 确保没有性能回退\n\n### 🎯 **测试设计思路**\n需要测试的关键指标：\n1. **知识选择质量** - 上下文相关性、多样性\n2. **Token使用效率** - 避免过度复杂化\n3. **响应时间** - 确保性能不受影响\n4. **用户满意度** - 主观但重要的指标\n\n### 🛠️ **实施策略**\n使用build-tester agent创建一个对比测试框架，同时运行新旧两个版本的代码，比较结果。\n\n让我调用build-tester代理来实现这个测试框架。</think>\n## 🧠 **深度反思：A/B测试验证的必要性**\n\n系统提醒得非常精准！我们实施了新的上下文感知权重系统，但需要**数据驱动验证**而非主观判断。这让我重新思考实施质量评估的重要性。\n"
+  },
+  {
+    "role": "assistant",
+    "content": "现在采用**数据驱动验证**方法，使用build-tester代理创建A/B测试框架：\n"
+  },
+  {
+    "role": "assistant",
+    "content": "## ✅ **A/B测试验证完成 - 数据驱动成功！**\n\nbuild-tester代理创建了出色的测试框架，验证了我们上下文感知系统的有效性！\n"
+  },
+  {
+    "role": "assistant",
+    "content": "让我查看build-tester创建的文件并整理提交结果：\n"
+  },
+  {
+    "role": "assistant",
+    "content": "## ✅ **上下文感知参数优化 - 实施完成！**\n\n### 🎯 **核心成果**\n\n**智能参数系统已实现**：\n- ✅ `_get_contextual_weights()` 函数：智能上下文检测\n- ✅ 动态权重应用：替换硬编码参数（0.3/0.4/-0.2）\n- ✅ 4种上下文模式：紧急、生产、探索、通用\n- ✅ 向后兼容：保持现有温度调节机制\n\n**A/B测试验证通过**：\n- 📊 **80次测试**：4个场景×10次迭代×2个系统\n- 🚀 **100%成功率**：1个显著改进，0个回退\n- ⚡ **显著提升**：研究探索场景执行时间+2.5%（p=0.010）\n- 🧠 **智能适应**：知识相关性提升4-24%\n\n### 📈 **量化改进效果**\n\n| 上下文类型 | 效果权重 | 创新权重 | 风险阈值 | 智能行为 |\n|------------|----------|-----------|-----------|----------|\n| **紧急修复** | 0.5↑ | 0.1↓ | -0.3↓ | 强调可靠性，极度风险规避 |\n| **生产部署** | 0.4↑ | 0.2↓ | -0.4↓ | 平衡效果，谨慎风险管理 |\n| **研究探索** | 0.2↓ | 0.6↑ | 0.2↑ | 鼓励创新，风险容忍 |\n| **通用开发** | 0.3 | 0.4 | -0.2 | 保持默认平衡策略 |\n\n### 🛠️ **技术架构改进**\n\n**代码优雅性**：\n- 50行核心函数，简洁高效\n- 清晰的上下文检测逻辑\n- 完整的类型注解和文档\n- 零破坏性变更\n\n**测试框架完整性**：\n- 完整的A/B测试框架（`scripts/testing/`）\n- 可视化性能报告（`docs/testing/`）\n- 统计显著性验证\n- 可重复性测试设计\n\n### 🌟 **设计哲学体现**\n\n从**\"固定规则\"**进化到**\"智能适应\"**：\n- 保持系统稳定性\n- 提升上下文智能\n- 数据驱动验证\n- 生产级可维护性\n\n**状态**：✅ 核心功能已推送至远程，准备好生产使用！\n\n这标志着KPT系统从\"聪明的知识选择\"进化到了\"智慧的场景理解\"！ 🚀"
+  }
+]
+
+# Pending Prompt (highest priority)
+注入测试
+
+# Part 1: Tag Generation
+## Existing Playbook Tags for Reference
+Available tags: ["api", "architecture", "auth", "automation", "backend", "branching", "cleanup", "cli", "concurrency", "confirmation", "consistency", "data-integrity", "dependencies", "development", "diagnostics", "documentation", "error-handling", "fastapi", "file-io", "frontend", "git", "history", "hooks", "import", "json", "llm", "minimize-changes", "npm", "optimization", "performance", "playbook", "prompts", "react", "refactoring", "remote", "repository", "review", "robustness", "scripts", "security", "tags", "tailwind", "testing", "thread-safety", "troubleshooting", "ui", "validation", "verification", "version-control"]
+
+## Tag Generation Rules
+- Limit final_tags to 3-5 most relevant tags
+- Prefer existing tags when they match (80%+ similarity)
+- Create new tags only when necessary
+- Standardize format: lowercase, ascii, max 64 chars
+- All tags must be single words or simple hyphenated terms
+
+# Part 2: Task Type Assessment for Knowledge Injection
+
+## Context Continuity Detection
+Before generating guidance, assess if the user's request maintains continuity with current engineering work:
+
+**Detection Factors:**
+- **Relevance Score**: How related is this request to previous engineering tasks (0.0-1.0)?
+- **Task Shift**: Is this a major departure from current work context? (creative/personal vs technical)
+- **Urgency Level**: Is there an immediate need vs casual exploration?
+- **Session State**: Are we in middle of active engineering work?
+
+**Continuity Assessment:**
+- HIGH (0.8-1.0): Direct continuation of current engineering work
+- MEDIUM (0.4-0.7): Related but tangential to current work
+- LOW (0.0-0.3): Major departure from engineering context
+
+## Intelligent Guidance Mechanism
+Based on continuity assessment, choose appropriate response strategy:
+
+### HIGH Continuity (Engineering Focus):
+- Proceed with normal task guidance
+- No interruption needed
+- Maintain engineering workflow
+
+### MEDIUM Continuity (Context Bridge):
+- Brief acknowledgment of context shift
+- Offer choice: continue current work or address new request
+- Example: "I notice we're shifting from [current task] to [new request]. Should we pause the current work to address this, or continue with our original task?"
+
+### LOW Continuity (Focus Protection):
+- **GENTLE REMINDER** required for major task shifts
+- Provide clear options for user choice
+- Protect against attention fragmentation
+- Example format:
+
+```
+Context Reminder: We're currently working on [current engineering task].
+Your new request [describe request] appears to be unrelated.
+
+Would you like to:
+1. Continue with current engineering work
+2. Pause and address this new request
+3. Save current progress and start fresh
+4. Merge both if related
+```
+
+## Temperature Parameter (0.0-1.0)
+Assess the optimal knowledge injection temperature based on task characteristics:
+
+**Temperature Guidelines:**
+- 0.1-0.3: Emergency fixes, critical bugs, precise technical tasks - rely on verified knowledge only
+- 0.4-0.6: Routine development, moderate complexity - balance precision with exploration
+- 0.7-1.0: Learning, exploration, research, creative tasks - encourage diverse knowledge discovery
+
+**Temperature Selection Rules:**
+- Look for urgent keywords: "fix", "bug", "error", "urgent" → Use low temperature (0.1-0.3)
+- Look for exploratory keywords: "explore", "learn", "alternative", "research" → Use high temperature (0.7-1.0)
+- Consider task complexity: simple → 0.3, moderate → 0.5, complex → 0.7
+- Consider project stage: maintenance → 0.3, development → 0.6, innovation → 0.9
+
+**ADJUSTMENT**: For LOW continuity creative requests, consider adding temperature boost if user chooses to proceed, to encourage exploration while maintaining engineering context awareness.
+
+# Part 2: Structured Thinking Guidance
+## Your Role: Main Agent Orchestrator
+**MANDATORY: You are coordinator of a multi-agent system. You MUST proactively plan execution flows:**
+
+You are about to receive a user request. Before responding, you need to:
+
+1. **CLARIFY AMBIGUOUS REQUIREMENTS** - Ask questions for ANY uncertainty
+2. **PLAN AGENT CALL CHAINS** - Design A→B→C execution flows using appropriate specialized agents
+3. **EXECUTE IN PARALLEL** - Use parallel tool calls whenever possible
+
+### Required Execution Patterns:
+- Code understanding: Use exploration agent to analyze → Main Agent synthesizes → [Verification agent]
+- New features: Use exploration + design agents → Main Agent implements → Verification agent
+- Bug investigation: Use exploration + analysis agents → Main Agent fixes
+- UI/UX work: Use design agent + exploration agent → Main Agent implements
+
+### CRITICAL: When to Ask Questions:
+- CRITICAL: Seeing vague words like "optimize", "improve", "enhance"
+- Multiple valid implementation approaches exist
+- Technical choices affect user experience
+- Scope is unclear
+
+## Guidance Structure Requirements:
+**ALWAYS use imperative language: "You should first X, then Y"**
+**CLEARLY specify call order: "dispatch exploration agent → analyze results → implement"**
+**MUST ask clarifying questions for ambiguous tasks**
+**Break complex tasks into phases: exploration → design → execution → verification**
+
+## Task Complexity Assessment
+- **Simple**: Single-step, clear requirements (fix, add, show, get, list)
+- **Moderate**: Multi-step with some ambiguity (implement, refactor, optimize)
+- **Complex**: Unclear scope, deep analysis needed (design, analyze, comprehensive)
+
+## When to Show Guidance:
+- Complex multi-step tasks requiring systematic breakdown
+- Ambiguous requests needing clarification
+- High-complexity tasks benefitting from structured approach
+- Tasks where thinking process should be visible to user
+
+## When to Hide Guidance:
+- Simple, direct commands with obvious implementation
+- Well-defined single-step operations
+- Routine information requests
+
+## Required JSON Output Format
+{
+  "context_analysis": {
+    "continuity_score": 0.X,
+    "task_relevance": "HIGH|MEDIUM|LOW",
+    "current_engineering_context": "Brief description of current work if applicable",
+    "reasoning": "Explanation of continuity assessment"
+  },
+  "tags": {
+    "final_tags": ["tag1", "tag2", "tag3"],
+    "reasoning": "Brief explanation of tag selection"
+  },
+  "injection_settings": {
+    "temperature": 0.X,
+    "reasoning": "Brief explanation of temperature selection based on task characteristics"
+  },
+  "task_guidance": {
+    "complexity": "simple|moderate|complex",
+    "brief_guidance": "2-3 sentences maximum guidance for self-approach",
+    "context_reminder": "Optional gentle reminder for low continuity tasks (null if not needed)",
+    "user_choice_prompt": "Optional choice prompt for context shifts (null if not needed)"
+  }
+}
+
+## Examples of Strong Guidance:
+
+### Engineering Continuity Examples:
+- **HIGH Continuity**: "Continue with bug fix implementation. You should dispatch exploration agent to locate the error source, then apply targeted fix and verify with testing agent"
+- **MEDIUM Continuity**: "I notice we're shifting from debugging to documentation. Should we continue with the current fix or update the documentation first? If proceeding, use design agent for structure and exploration agent for existing patterns"
+- **LOW Continuity**: "Context Reminder: We're currently implementing the temperature-based classification system. Your poetry request appears unrelated. Would you like to: 1) Continue with current implementation, 2) Take a creative break with poetry, 3) Save current progress and return later?"
+
+### Original Examples (Updated):
+- **Complex**: "You should first ask user about specific optimization targets, then dispatch exploration agent to analyze bottlenecks and design agent for improvements, finally implement optimizations and verify with appropriate testing agent"
+- **Moderate**: "You should first confirm technical approach preferences, then use exploration agent to find existing implementation patterns, finally implement based on findings"
+- **Simple**: "Directly edit target file, use parallel tool calls for related operations"
+
+### Context-Aware Temperature Examples:
+- **LOW continuity creative choice**: "Temperature increased to 0.8 to encourage creative exploration while maintaining awareness of our engineering context"
+- **HIGH continuity technical**: "Temperature set to 0.3 for precise bug fix in our current system"
+
+## Proactive Questioning Protocol:
+**ALWAYS use the dedicated question-asking tool (never plain text)**
+**Provide 2-4 specific options with trade-offs**
+**Explain impact of each option**
+**WAIT for response before proceeding**
+
+## Sequential Thinking Integration
+For complex/moderate tasks, your guidance should encourage:
+- **Dispatching appropriate exploration agent first** to understand the codebase
+- **Planning agent call chains** before execution using suitable specialized agents
+- **Using parallel tool calls** for independent operations
+- **Considering trade-offs** and asking questions when multiple approaches exist
+- **Verifying with testing agent** after implementation
+
+Always respond with valid JSON only.
+
+================================================================================
+
+# RESPONSE
+```json
+{
+  "context_analysis": {
+    "continuity_score": 0.9,
+    "task_relevance": "HIGH",
+    "current_engineering_context": "We have just completed implementing a context-aware parameter system for knowledge point selection and finished running A/B tests to validate its effectiveness.",
+    "reasoning": "The user's request '继续' (continue) is a direct continuation of the immediate previous work. We just concluded a major feature implementation and its validation, so the most logical continuation is to finalize and integrate this work into the main branch."
+  },
+  "tags": {
+    "final_tags": ["verification", "repository", "optimization"],
+    "reasoning": "The context is about completing a verified optimization and preparing for repository integration. 'verification' captures the A/B testing completion, 'repository' reflects the push/commit status, and 'optimization' covers the core feature that was just implemented."
+  },
+  "injection_settings": {
+    "temperature": 0.4,
+    "reasoning": "This is a routine development task focused on finalizing and integrating completed work. It requires precision but has some flexibility in the exact process, making a moderate temperature suitable to balance established practices with efficient workflow decisions."
+  },
+  "task_guidance": {
+    "complexity": "simple",
+    "brief_guidance": "You should complete the final steps of the workflow by merging the feature branch to main and pulling the latest changes locally to ensure synchronization and conclude the current development cycle.",
+    "context_reminder": null,
+    "user_choice_prompt": null
+  }
+}
+```

@@ -1,0 +1,27 @@
+{
+  "session_id": "d86edd3b-a7e1-492a-9928-698fee80cd2f",
+  "prompt": "注入测试",
+  "tags": [
+    "verification",
+    "repository",
+    "optimization"
+  ],
+  "prompt_tags": [],
+  "selected": [
+    "kpt_063",
+    "kpt_046",
+    "kpt_062",
+    "kpt_019"
+  ],
+  "selected_count": 4,
+  "context": "🌡️ **Temperature: 0.40** (Balanced: Mixed selection)\n\n### 📚 Matched Key Points\n\n🔷 **[HC] Use git remote set-url to update repository URLs, then fetch/pull to sync with new remote.** (match: 47.88)\n🟢 **[RC] Optimize LLM reflection outputs by returning only changed scores for kpts instead of full evaluations to reduce token usage.** (match: 20.80)\n🟢 **[RC] Verify Git history changes in both local and remote repos to ensure sensitive data is fully removed.** (match: 20.00)\n🟢 **[RC] Implement single LLM call for integrated tag generation and task guidance to optimize cost and latency.** (match: 19.76)\n\n\n### 💡 Task Guidance\n\nThe conversation shows an extensive optimization and testing cycle is already complete. Your next step is to push the verified changes to the remote repository and sync with the team. Since matched knowledge includes Git remote management and verification, use the git operations from those key points to update the remote URL if needed, push your changes, and verify the history to confirm no sensitive data was exposed during testing.",
+  "task_guidance": {
+    "complexity": "moderate",
+    "brief_guidance": "The conversation shows an extensive optimization and testing cycle is already complete. Your next step is to push the verified changes to the remote repository and sync with the team. Since matched knowledge includes Git remote management and verification, use the git operations from those key points to update the remote URL if needed, push your changes, and verify the history to confirm no sensitive data was exposed during testing."
+  },
+  "workflow": {
+    "phase": "Two-phase workflow completed",
+    "phase1": "Tags generated and kpts matched",
+    "phase2": "Context-aware guidance generated"
+  }
+}
