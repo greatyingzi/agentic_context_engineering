@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
+import asyncio
 import json
 import sys
-import asyncio
 from pathlib import Path
+
 from common import (
-    load_playbook,
-    save_playbook,
-    load_transcript,
-    extract_keypoints,
-    update_playbook_data,
     clear_session,
-    load_settings,
+    extract_keypoints,
     get_exception_handler,
     is_diagnostic_mode,
+    load_playbook,
+    load_settings,
+    load_transcript,
     save_diagnostic,
+    save_playbook,
+    update_playbook_data,
 )
 
 
@@ -33,7 +34,7 @@ async def main():
                 save_diagnostic(
                     f"No messages found in transcript: {transcript_path}. "
                     f"Transcript exists: {Path(transcript_path).exists() if transcript_path else 'No path provided'}",
-                    "session_end_no_messages"
+                    "session_end_no_messages",
                 )
             sys.exit(0)
 
@@ -54,7 +55,7 @@ async def main():
         if is_diagnostic_mode():
             save_diagnostic(
                 f"Starting key points extraction. Current playbook has {len(playbook.get('key_points', []))} key points",
-                "session_end_extraction_start"
+                "session_end_extraction_start",
             )
 
         extraction_result = await extract_keypoints(
@@ -65,7 +66,7 @@ async def main():
         if is_diagnostic_mode():
             save_diagnostic(
                 f"Extracted {new_points_count} new key points",
-                "session_end_extraction_result"
+                "session_end_extraction_result",
             )
 
         playbook = update_playbook_data(playbook, extraction_result)
@@ -74,7 +75,7 @@ async def main():
         if is_diagnostic_mode():
             save_diagnostic(
                 f"Saving playbook with {final_count} total key points",
-                "session_end_save"
+                "session_end_save",
             )
 
         save_success = save_playbook(playbook)
@@ -82,13 +83,12 @@ async def main():
         if is_diagnostic_mode():
             if save_success:
                 save_diagnostic(
-                    "Playbook saved successfully",
-                    "session_end_save_success"
+                    "Playbook saved successfully", "session_end_save_success"
                 )
             else:
                 save_diagnostic(
                     "Playbook save failed - no error details available",
-                    "session_end_save_failed"
+                    "session_end_save_failed",
                 )
 
         clear_session()
@@ -96,11 +96,20 @@ async def main():
     except Exception as e:
         # Use global exception handler for consistent error logging and user feedback
         context_data = {
-            "input_data": input_data if 'input_data' in locals() else "Unable to capture",
-            "reason": input_data.get("reason") if 'input_data' in locals() else "unknown",
-            "hook_stage": "main_execution"
+            "input_data": input_data
+            if "input_data" in locals()
+            else "Unable to capture",
+            "reason": input_data.get("reason")
+            if "input_data" in locals()
+            else "unknown",
+            "hook_stage": "main_execution",
         }
-        handler.handle_and_exit(e, "session_end", context_data, session_id if 'session_id' in locals() else None)
+        handler.handle_and_exit(
+            e,
+            "session_end",
+            context_data,
+            session_id if "session_id" in locals() else None,
+        )
 
 
 if __name__ == "__main__":

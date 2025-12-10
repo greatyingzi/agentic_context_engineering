@@ -1,4 +1,5 @@
 """Playbook engine module for managing playbook data operations."""
+
 import json
 import sys
 from typing import Optional
@@ -36,6 +37,7 @@ def load_settings() -> dict:
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent / "utils"))
         from path_utils import get_user_claude_dir
 
@@ -58,38 +60,44 @@ def validate_playbook_structure(data: dict) -> bool:
         return False
 
     # Check required fields
-    if 'key_points' in data and not isinstance(data['key_points'], list):
+    if "key_points" in data and not isinstance(data["key_points"], list):
         return False
 
     # Check key_points structure if present
-    if 'key_points' in data:
-        for kp in data['key_points']:
+    if "key_points" in data:
+        for kp in data["key_points"]:
             if isinstance(kp, dict):
                 # Validate keypoint fields
-                if 'text' in kp and not isinstance(kp['text'], str):
+                if "text" in kp and not isinstance(kp["text"], str):
                     return False
-                if 'tags' in kp and not isinstance(kp['tags'], list):
+                if "tags" in kp and not isinstance(kp["tags"], list):
                     return False
-                if 'score' in kp and not isinstance(kp['score'], (int, float)):
+                if "score" in kp and not isinstance(kp["score"], (int, float)):
                     return False
-                if 'name' in kp and not isinstance(kp['name'], str):
+                if "name" in kp and not isinstance(kp["name"], str):
                     return False
-                if 'pending' in kp and not isinstance(kp['pending'], bool):
+                if "pending" in kp and not isinstance(kp["pending"], bool):
                     return False
 
                 # Phase 2 Emergency Fix: Validate multi-dimensional fields
-                if 'effect_rating' in kp and not isinstance(kp['effect_rating'], (int, float)):
+                if "effect_rating" in kp and not isinstance(
+                    kp["effect_rating"], (int, float)
+                ):
                     return False
-                if 'effect_rating' in kp and not (0 <= kp['effect_rating'] <= 1):
+                if "effect_rating" in kp and not (0 <= kp["effect_rating"] <= 1):
                     return False
-                if 'risk_level' in kp and not isinstance(kp['risk_level'], (int, float)):
+                if "risk_level" in kp and not isinstance(
+                    kp["risk_level"], (int, float)
+                ):
                     return False
                 # Risk is intentionally a signed score where positives mean higher risk.
-                if 'risk_level' in kp and not (-1 <= kp['risk_level'] <= 1):
+                if "risk_level" in kp and not (-1 <= kp["risk_level"] <= 1):
                     return False
-                if 'innovation_level' in kp and not isinstance(kp['innovation_level'], (int, float)):
+                if "innovation_level" in kp and not isinstance(
+                    kp["innovation_level"], (int, float)
+                ):
                     return False
-                if 'innovation_level' in kp and not (0 <= kp['innovation_level'] <= 1):
+                if "innovation_level" in kp and not (0 <= kp["innovation_level"] <= 1):
                     return False
 
     return True
@@ -98,25 +106,26 @@ def validate_playbook_structure(data: dict) -> bool:
 def load_playbook() -> dict:
     """Load playbook with intelligent migration and version control."""
     try:
-        from .utils.path_utils import get_project_dir, is_diagnostic_mode, save_diagnostic
-        from .utils.tag_utils import normalize_tags, infer_tags_from_text
+        from .utils.path_utils import (
+            get_project_dir,
+            is_diagnostic_mode,
+            save_diagnostic,
+        )
+        from .utils.tag_utils import infer_tags_from_text, normalize_tags
     except ImportError:
         # Fallback for direct execution
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent / "utils"))
         from path_utils import get_project_dir, is_diagnostic_mode, save_diagnostic
-        from tag_utils import normalize_tags, infer_tags_from_text
+        from tag_utils import infer_tags_from_text, normalize_tags
     import sys
 
     playbook_path = get_project_dir() / ".claude" / "playbook.json"
 
     if not playbook_path.exists():
-        return {
-            "version": "1.0",
-            "last_updated": None,
-            "key_points": []
-        }
+        return {"version": "1.0", "last_updated": None, "key_points": []}
 
     def _is_divider(entry: object) -> bool:
         return isinstance(entry, dict) and entry.get("divider") is True
@@ -127,9 +136,15 @@ def load_playbook() -> dict:
 
         # Validate playbook structure
         if not validate_playbook_structure(data):
-            print(f"Warning: Invalid playbook structure in {playbook_path}, using default", file=sys.stderr)
+            print(
+                f"Warning: Invalid playbook structure in {playbook_path}, using default",
+                file=sys.stderr,
+            )
             if is_diagnostic_mode():
-                save_diagnostic(f"Invalid playbook structure in {playbook_path}", "playbook_validation")
+                save_diagnostic(
+                    f"Invalid playbook structure in {playbook_path}",
+                    "playbook_validation",
+                )
             return {"version": "1.0", "last_updated": None, "key_points": []}
 
         if "key_points" not in data:
@@ -163,11 +178,17 @@ def load_playbook() -> dict:
 
                 # Phase 2 Emergency Fix: Ensure multi-dimensional fields exist for existing KPTs
                 if "effect_rating" not in keypoint:
-                    keypoint["effect_rating"] = _infer_effect_rating_from_score(keypoint.get("score", 0))
+                    keypoint["effect_rating"] = _infer_effect_rating_from_score(
+                        keypoint.get("score", 0)
+                    )
                 if "risk_level" not in keypoint:
-                    keypoint["risk_level"] = _infer_risk_level_from_score_and_tags(keypoint)
+                    keypoint["risk_level"] = _infer_risk_level_from_score_and_tags(
+                        keypoint
+                    )
                 if "innovation_level" not in keypoint:
-                    keypoint["innovation_level"] = _infer_innovation_from_tags(keypoint.get("tags", []))
+                    keypoint["innovation_level"] = _infer_innovation_from_tags(
+                        keypoint.get("tags", [])
+                    )
             else:
                 continue
 
@@ -199,11 +220,13 @@ def save_playbook(playbook: dict) -> bool:
         bool: True if save was successful, False otherwise
     """
     from datetime import datetime
+
     try:
         from .utils.path_utils import get_project_dir
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent / "utils"))
         from path_utils import get_project_dir
 
@@ -229,19 +252,25 @@ def save_playbook(playbook: dict) -> bool:
         # 确保新字段存在且类型正确
         if "effect_rating" not in item:
             item["effect_rating"] = 0.5  # 默认中等效果
-        elif not isinstance(item["effect_rating"], (int, float)) or not (0 <= item["effect_rating"] <= 1):
+        elif not isinstance(item["effect_rating"], (int, float)) or not (
+            0 <= item["effect_rating"] <= 1
+        ):
             # 如果值无效，重置为默认值
             item["effect_rating"] = 0.5
 
         if "risk_level" not in item:
             item["risk_level"] = -0.5  # 默认中等风险
-        elif not isinstance(item["risk_level"], (int, float)) or not (-1 <= item["risk_level"] <= 1):
+        elif not isinstance(item["risk_level"], (int, float)) or not (
+            -1 <= item["risk_level"] <= 1
+        ):
             # 如果值无效，重置为默认值
             item["risk_level"] = -0.5
 
         if "innovation_level" not in item:
             item["innovation_level"] = 0.5  # 默认中等创新
-        elif not isinstance(item["innovation_level"], (int, float)) or not (0 <= item["innovation_level"] <= 1):
+        elif not isinstance(item["innovation_level"], (int, float)) or not (
+            0 <= item["innovation_level"] <= 1
+        ):
             # 如果值无效，重置为默认值
             item["innovation_level"] = 0.5
 
@@ -255,13 +284,15 @@ def save_playbook(playbook: dict) -> bool:
                 "text": "--- pending key points below ---",
             }
         )
-        serialized_keypoints.extend(_serialize_kp(kp, force_pending=True) for kp in pending)
+        serialized_keypoints.extend(
+            _serialize_kp(kp, force_pending=True) for kp in pending
+        )
 
     payload = dict(playbook)
     payload["key_points"] = serialized_keypoints
 
     # Atomic write: write to temp file first, then move
-    temp_path = playbook_path.with_suffix('.tmp')
+    temp_path = playbook_path.with_suffix(".tmp")
     try:
         with open(temp_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)
@@ -285,7 +316,9 @@ def format_playbook(
     tags: Optional[list[str]] = None,
 ) -> str:
     """Format playbook content for display."""
-    selected_key_points = key_points if key_points is not None else playbook.get("key_points", [])
+    selected_key_points = (
+        key_points if key_points is not None else playbook.get("key_points", [])
+    )
     if not selected_key_points:
         return ""
 
@@ -301,6 +334,7 @@ def format_playbook(
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent))
         from file_utils import load_template
     template = load_template("playbook.txt")
@@ -310,12 +344,13 @@ def format_playbook(
 def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
     """Update playbook with new key points and evaluations."""
     try:
-        from .utils.tag_utils import normalize_tags, infer_tags_from_text
+        from .utils.tag_utils import infer_tags_from_text, normalize_tags
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent / "utils"))
-        from tag_utils import normalize_tags, infer_tags_from_text
+        from tag_utils import infer_tags_from_text, normalize_tags
     import re
 
     merged_key_points = extraction_result.get("merged_key_points")
@@ -335,7 +370,7 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
         "neutral": 0,
         "slightly_harmful": -1,
         "moderately_harmful": -2,
-        "highly_dangerous": -4
+        "highly_dangerous": -4,
     }
     name_to_kp = {kp["name"]: kp for kp in playbook["key_points"]}
 
@@ -349,7 +384,9 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
     if merged_key_points is not None:
         # If model proposes fewer merged KPTs than existing ones, treat them as additions
         # instead of replacing the playbook to avoid accidental shrinking.
-        if merged_key_points and len(merged_key_points) < len(playbook.get("key_points", [])):
+        if merged_key_points and len(merged_key_points) < len(
+            playbook.get("key_points", [])
+        ):
             existing_names = {kp["name"] for kp in playbook["key_points"]}
             existing_texts = {kp.get("text", "") for kp in playbook["key_points"]}
             name_index = {kp["name"]: kp for kp in playbook["key_points"]}
@@ -381,7 +418,9 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
                         "name": name,
                         "text": text,
                         "score": total_score,
-                        "tags": tags or normalize_tags(fallback_tags) or infer_tags_from_text(text),
+                        "tags": tags
+                        or normalize_tags(fallback_tags)
+                        or infer_tags_from_text(text),
                         "pending": False,
                     }
                 )
@@ -422,7 +461,9 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
 
             if matched_sources:
                 total_score = sum(kp.get("score", 0) for kp in matched_sources)
-                fallback_tags = next((kp.get("tags", []) for kp in matched_sources if kp.get("tags")), [])
+                fallback_tags = next(
+                    (kp.get("tags", []) for kp in matched_sources if kp.get("tags")), []
+                )
             elif source_kp:
                 total_score = source_kp.get("score", 0)
                 fallback_tags = source_kp.get("tags", [])
@@ -431,7 +472,11 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
                 total_score = 0
                 fallback_tags = []
 
-            name = source_kp["name"] if source_kp else generate_keypoint_name(existing_names)
+            name = (
+                source_kp["name"]
+                if source_kp
+                else generate_keypoint_name(existing_names)
+            )
 
             if any(kp.get("name") == name for kp in merged_list):
                 name = generate_keypoint_name(existing_names)
@@ -441,7 +486,9 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
                     "name": name,
                     "text": text,
                     "score": total_score,
-                    "tags": tags or normalize_tags(fallback_tags) or infer_tags_from_text(text),
+                    "tags": tags
+                    or normalize_tags(fallback_tags)
+                    or infer_tags_from_text(text),
                     "pending": False,
                 }
             )
@@ -482,12 +529,20 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
             name = generate_keypoint_name(existing_names)
 
             # Extract multi-dimensional assessment for new key points
-            effect_rating = item.get("effect_rating", 0.5) if isinstance(item, dict) else 0.5
-            risk_level = item.get("risk_level", -0.5) if isinstance(item, dict) else -0.5
-            innovation_level = item.get("innovation_level", 0.5) if isinstance(item, dict) else 0.5
+            effect_rating = (
+                item.get("effect_rating", 0.5) if isinstance(item, dict) else 0.5
+            )
+            risk_level = (
+                item.get("risk_level", -0.5) if isinstance(item, dict) else -0.5
+            )
+            innovation_level = (
+                item.get("innovation_level", 0.5) if isinstance(item, dict) else 0.5
+            )
 
             # Calculate initial score from multi-dimensional assessment
-            initial_score = round(effect_rating * 2 + innovation_level * 1 - risk_level * 1)
+            initial_score = round(
+                effect_rating * 2 + innovation_level * 1 - risk_level * 1
+            )
             # Clamp to reasonable range
             initial_score = max(-2, min(3, initial_score))
 
@@ -526,7 +581,11 @@ def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
 
 
 def select_relevant_keypoints(
-    playbook: dict, tags: list[str], limit: int = 6, prompt_tags: Optional[list[str]] = None, temperature: float = 0.5
+    playbook: dict,
+    tags: list[str],
+    limit: int = 6,
+    prompt_tags: Optional[list[str]] = None,
+    temperature: float = 0.5,
 ) -> list[dict]:
     """TRUE dual-layer classification with clear boundaries.
 
@@ -584,7 +643,7 @@ def select_relevant_keypoints(
 
     # CLASSIFICATION PHASE: Separate into two distinct layers
     high_confidence_layer = []  # Layer 1: score >= 2
-    recommendation_layer = []    # Layer 2: 0 <= score < 2
+    recommendation_layer = []  # Layer 2: 0 <= score < 2
 
     for kp in key_points:
         kp_tags = [t for t in kp.get("tags", []) if isinstance(t, str)]
@@ -612,7 +671,9 @@ def select_relevant_keypoints(
                 if temperature <= 0.3:
                     temp_multiplier += 0.5  # Conservative boost for proven items
                 elif temperature >= 0.7:
-                    temp_multiplier -= 0.3  # Exploratory mode reduces proven item weight
+                    temp_multiplier -= (
+                        0.3  # Exploratory mode reduces proven item weight
+                    )
 
             else:
                 # LAYER 2: Recommendation-Based
@@ -681,36 +742,46 @@ def select_relevant_keypoints(
         recommendation_limit = limit - high_confidence_limit
 
     # Sort each layer internally
-    sorted_high_confidence = sorted(high_confidence_layer, key=lambda kp: -kp["_total_match"])[:high_confidence_limit]
-    sorted_recommendations = sorted(recommendation_layer, key=lambda kp: -kp["_total_match"])[:recommendation_limit]
+    sorted_high_confidence = sorted(
+        high_confidence_layer, key=lambda kp: -kp["_total_match"]
+    )[:high_confidence_limit]
+    sorted_recommendations = sorted(
+        recommendation_layer, key=lambda kp: -kp["_total_match"]
+    )[:recommendation_limit]
 
     # MERGE WITH LAYER PRIORITY
     final_selection = []
 
     # Layer-specific ranking
     for i, kp in enumerate(sorted_high_confidence):
-        kp["_layer_rank"] = f"HC-{i+1}"
+        kp["_layer_rank"] = f"HC-{i + 1}"
         final_selection.append(kp)
 
     for i, kp in enumerate(sorted_recommendations):
-        kp["_layer_rank"] = f"RC-{i+1}"
+        kp["_layer_rank"] = f"RC-{i + 1}"
         final_selection.append(kp)
 
     # FINAL SORTING: Temperature-aware global ordering
     if temperature <= 0.3:
         # Conservative: High confidence items first
-        final_selection = sorted(final_selection, key=lambda kp: (
-            0 if kp["_layer"] == "HIGH_CONFIDENCE" else 2,  # HC first
-            1 if kp["_layer"] == "RECOMMENDATION" else 3,  # RC second
-            -kp["_total_match"]  # Then by score
-        ))
+        final_selection = sorted(
+            final_selection,
+            key=lambda kp: (
+                0 if kp["_layer"] == "HIGH_CONFIDENCE" else 2,  # HC first
+                1 if kp["_layer"] == "RECOMMENDATION" else 3,  # RC second
+                -kp["_total_match"],  # Then by score
+            ),
+        )
     elif temperature >= 0.7:
         # Exploratory: Recommendations first
-        final_selection = sorted(final_selection, key=lambda kp: (
-            0 if kp["_layer"] == "RECOMMENDATION" else 2,  # RC first
-            1 if kp["_layer"] == "HIGH_CONFIDENCE" else 3,  # HC second
-            -kp["_total_match"]  # Then by score
-        ))
+        final_selection = sorted(
+            final_selection,
+            key=lambda kp: (
+                0 if kp["_layer"] == "RECOMMENDATION" else 2,  # RC first
+                1 if kp["_layer"] == "HIGH_CONFIDENCE" else 3,  # HC second
+                -kp["_total_match"],  # Then by score
+            ),
+        )
     else:
         # Balanced: Mix by score but preserve layer identity
         final_selection = sorted(final_selection, key=lambda kp: -kp["_total_match"])
@@ -718,7 +789,10 @@ def select_relevant_keypoints(
     # Return only the requested limit
     return final_selection[:limit]
 
-def apply_intelligent_filtering(kps: list[dict], temperature: float, limit: int) -> list[dict]:
+
+def apply_intelligent_filtering(
+    kps: list[dict], temperature: float, limit: int
+) -> list[dict]:
     """Phase 3: Intelligent filtering to ensure diversity and safety"""
 
     # 1. Extreme risk filtering
@@ -763,14 +837,17 @@ def apply_intelligent_filtering(kps: list[dict], temperature: float, limit: int)
         # In conservative mode, filter out low-effectiveness items
         min_effectiveness = 0.3
         filtered_kps = [
-            kp for kp in filtered_kps
+            kp
+            for kp in filtered_kps
             if kp.get("effect_rating", 0.5) >= min_effectiveness
         ]
 
     return filtered_kps
 
 
-def _get_contextual_weights(layer_type: str, all_tags_text: str) -> tuple[float, float, float]:
+def _get_contextual_weights(
+    layer_type: str, all_tags_text: str
+) -> tuple[float, float, float]:
     """
     Get context-aware parameter weights based on detected context patterns.
 
@@ -779,13 +856,32 @@ def _get_contextual_weights(layer_type: str, all_tags_text: str) -> tuple[float,
     """
     # Context detection patterns
     urgent_indicators = ["fix", "bug", "error", "urgent", "critical", "broken"]
-    exploratory_indicators = ["explore", "learn", "research", "alternative", "innovative", "prototype", "experimental"]
-    production_indicators = ["production", "deploy", "release", "customer", "enterprise", "stable"]
+    exploratory_indicators = [
+        "explore",
+        "learn",
+        "research",
+        "alternative",
+        "innovative",
+        "prototype",
+        "experimental",
+    ]
+    production_indicators = [
+        "production",
+        "deploy",
+        "release",
+        "customer",
+        "enterprise",
+        "stable",
+    ]
 
     # Detect contexts
     urgent_context = any(indicator in all_tags_text for indicator in urgent_indicators)
-    exploratory_context = any(indicator in all_tags_text for indicator in exploratory_indicators)
-    production_context = any(indicator in all_tags_text for indicator in production_indicators)
+    exploratory_context = any(
+        indicator in all_tags_text for indicator in exploratory_indicators
+    )
+    production_context = any(
+        indicator in all_tags_text for indicator in production_indicators
+    )
 
     # Default weights
     default_effect_weight = 0.3
@@ -812,14 +908,16 @@ def _get_contextual_weights(layer_type: str, all_tags_text: str) -> tuple[float,
         if layer_type == "HIGH_CONFIDENCE":
             return 0.2, 0.4, -0.1  # Less emphasis on past effectiveness
         else:
-            return 0.1, 0.6, 0.2   # Strong innovation focus, risk-tolerant
+            return 0.1, 0.6, 0.2  # Strong innovation focus, risk-tolerant
 
     else:
         # Default balanced approach
         return default_effect_weight, default_innovation_weight, default_risk_threshold
 
 
-def apply_adaptive_optimization(kps: list[dict], temperature: float, desired_tags: list[str]) -> list[dict]:
+def apply_adaptive_optimization(
+    kps: list[dict], temperature: float, desired_tags: list[str]
+) -> list[dict]:
     """Phase 3: Adaptive optimization based on context"""
 
     # Contextual temperature adjustment based on tag analysis
@@ -828,8 +926,20 @@ def apply_adaptive_optimization(kps: list[dict], temperature: float, desired_tag
 
     # Analyze request characteristics for adaptive adjustment
     urgent_indicators = ["fix", "bug", "error", "urgent", "critical", "broken"]
-    exploratory_indicators = ["explore", "learn", "research", "alternative", "innovative"]
-    production_indicators = ["production", "deploy", "release", "customer", "enterprise"]
+    exploratory_indicators = [
+        "explore",
+        "learn",
+        "research",
+        "alternative",
+        "innovative",
+    ]
+    production_indicators = [
+        "production",
+        "deploy",
+        "release",
+        "customer",
+        "enterprise",
+    ]
 
     all_tags_text = " ".join(desired_tags).lower()
 
@@ -838,8 +948,12 @@ def apply_adaptive_optimization(kps: list[dict], temperature: float, desired_tag
 
     # Detect context patterns
     urgent_context = any(indicator in all_tags_text for indicator in urgent_indicators)
-    exploratory_context = any(indicator in all_tags_text for indicator in exploratory_indicators)
-    production_context = any(indicator in all_tags_text for indicator in production_indicators)
+    exploratory_context = any(
+        indicator in all_tags_text for indicator in exploratory_indicators
+    )
+    production_context = any(
+        indicator in all_tags_text for indicator in production_indicators
+    )
 
     # Apply contextual adjustments
     if urgent_context and temperature > 0.3:
@@ -868,14 +982,32 @@ def apply_adaptive_optimization(kps: list[dict], temperature: float, desired_tag
 
     return kps
 
+
 def get_primary_tag(tags: list[str]) -> str:
     """Get the primary tag for diversity filtering"""
     if not tags:
         return "unknown"
 
     # Priority order for primary tag selection
-    tech_tags = ["python", "javascript", "react", "node", "api", "database", "sql", "git", "docker"]
-    action_tags = ["testing", "deployment", "error-handling", "security", "performance", "optimization"]
+    tech_tags = [
+        "python",
+        "javascript",
+        "react",
+        "node",
+        "api",
+        "database",
+        "sql",
+        "git",
+        "docker",
+    ]
+    action_tags = [
+        "testing",
+        "deployment",
+        "error-handling",
+        "security",
+        "performance",
+        "optimization",
+    ]
 
     # Check for high-priority tags
     for tag in tags:
@@ -905,7 +1037,15 @@ def _infer_risk_level_from_text(text: str) -> float:
     text_lower = text.lower()
 
     # 高风险关键词
-    high_risk_keywords = ["experimental", "cutting-edge", "unstable", "beta", "risky", "dangerous", "hack"]
+    high_risk_keywords = [
+        "experimental",
+        "cutting-edge",
+        "unstable",
+        "beta",
+        "risky",
+        "dangerous",
+        "hack",
+    ]
     medium_risk_keywords = ["new", "alternative", "innovative", "advanced"]
     safe_keywords = ["standard", "proven", "stable", "tested", "safe", "reliable"]
 
@@ -943,9 +1083,34 @@ def _infer_innovation_from_text(text: str) -> float:
     text_lower = text.lower()
 
     # 高创新关键词
-    high_innovation_keywords = ["breakthrough", "revolutionary", "novel", "first-time", "pioneering", "quantum", "ai-driven", "machine-learning"]
-    medium_innovation_keywords = ["clever", "smart", "intelligent", "advanced", "optimized", "improved", "creative"]
-    standard_keywords = ["standard", "basic", "simple", "regular", "common", "traditional", "conventional"]
+    high_innovation_keywords = [
+        "breakthrough",
+        "revolutionary",
+        "novel",
+        "first-time",
+        "pioneering",
+        "quantum",
+        "ai-driven",
+        "machine-learning",
+    ]
+    medium_innovation_keywords = [
+        "clever",
+        "smart",
+        "intelligent",
+        "advanced",
+        "optimized",
+        "improved",
+        "creative",
+    ]
+    standard_keywords = [
+        "standard",
+        "basic",
+        "simple",
+        "regular",
+        "common",
+        "traditional",
+        "conventional",
+    ]
 
     if any(keyword in text_lower for keyword in high_innovation_keywords):
         return 0.9  # 高创新
@@ -963,7 +1128,16 @@ def _infer_innovation_from_tags(tags: list[str]) -> float:
         return 0.5
 
     # 创新技术标签
-    innovation_tags = ["ai", "ml", "quantum", "blockchain", "ar", "vr", "experimental", "research"]
+    innovation_tags = [
+        "ai",
+        "ml",
+        "quantum",
+        "blockchain",
+        "ar",
+        "vr",
+        "experimental",
+        "research",
+    ]
     advanced_tags = ["advanced", "modern", "next-gen", "cutting-edge", "optimization"]
     basic_tags = ["basic", "standard", "simple", "common"]
 

@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 import json
 import sys
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from common import (
-    load_playbook,
     format_playbook,
-    is_diagnostic_mode,
-    save_diagnostic,
-    load_transcript,
     generate_task_guidance,
-    select_relevant_keypoints,
-    load_template,
-    get_exception_handler,
     get_anthropic_client,
-    normalize_tags,
+    get_exception_handler,
     infer_tags_from_text,
+    is_diagnostic_mode,
+    load_playbook,
+    load_template,
+    load_transcript,
+    normalize_tags,
+    save_diagnostic,
+    select_relevant_keypoints,
 )
 
 # Configuration constants for better maintainability
@@ -57,7 +58,7 @@ def generate_tags_only(
     messages: list,
     prompt_text: str = "",
     playbook: Optional[dict] = None,
-    diagnostic_name: str = "tags_only"
+    diagnostic_name: str = "tags_only",
 ) -> dict:
     """Generate tags only (no guidance).
 
@@ -71,7 +72,7 @@ def generate_tags_only(
             "tags": {
                 "final_tags": [],
                 "seed_tags": [],
-                "reasoning": "No client available"
+                "reasoning": "No client available",
             }
         }
 
@@ -86,11 +87,17 @@ def generate_tags_only(
         existing_tags = list(tags_set)
 
     # Infer seed tags from prompt
-    prompt_seed_tags = normalize_tags(infer_tags_from_text(prompt_text, max_tags=MAX_SEED_TAGS))
+    prompt_seed_tags = normalize_tags(
+        infer_tags_from_text(prompt_text, max_tags=MAX_SEED_TAGS)
+    )
 
     # Build format params for tag-only prompt
     format_params = {
-        "conversation": json.dumps(messages[-MAX_CONVERSATION_MESSAGES:] if messages else [], indent=2, ensure_ascii=False),
+        "conversation": json.dumps(
+            messages[-MAX_CONVERSATION_MESSAGES:] if messages else [],
+            indent=2,
+            ensure_ascii=False,
+        ),
         "prompt": prompt_text,
     }
 
@@ -105,7 +112,9 @@ def generate_tags_only(
     prompt = template.format(**format_params)
 
     response = client.messages.create(
-        model=model, max_tokens=TAGS_GENERATION_MAX_TOKENS, messages=[{"role": "user", "content": prompt}]
+        model=model,
+        max_tokens=TAGS_GENERATION_MAX_TOKENS,
+        messages=[{"role": "user", "content": prompt}],
     )
 
     response_text_parts = []
@@ -132,7 +141,9 @@ def generate_tags_only(
         if parsed:
             tags_data = parsed.get("tags", {})
             if isinstance(tags_data, dict) and "final_tags" in tags_data:
-                llm_tags = [t for t in tags_data.get("final_tags", []) if isinstance(t, str)]
+                llm_tags = [
+                    t for t in tags_data.get("final_tags", []) if isinstance(t, str)
+                ]
             else:
                 llm_tags = [t for t in tags_data if isinstance(t, str)]
         else:
@@ -140,19 +151,27 @@ def generate_tags_only(
             llm_tags = prompt_seed_tags
 
         # Combine and normalize tags
-        final_tags = normalize_tags(prompt_seed_tags + llm_tags, max_tags=MAX_TAGS_FINAL)
+        final_tags = normalize_tags(
+            prompt_seed_tags + llm_tags, max_tags=MAX_TAGS_FINAL
+        )
         final_tags = final_tags or prompt_seed_tags
 
     return {
         "tags": {
             "final_tags": final_tags,
             "seed_tags": prompt_seed_tags,
-            "reasoning": "Tags generated in Phase 1"
+            "reasoning": "Tags generated in Phase 1",
         },
         "injection_settings": {
-            "temperature": parsed.get("injection_settings", {}).get("temperature", 0.5) if parsed else 0.5,
-            "reasoning": parsed.get("injection_settings", {}).get("reasoning", "Default temperature") if parsed else "Default temperature"
-        }
+            "temperature": parsed.get("injection_settings", {}).get("temperature", 0.5)
+            if parsed
+            else 0.5,
+            "reasoning": parsed.get("injection_settings", {}).get(
+                "reasoning", "Default temperature"
+            )
+            if parsed
+            else "Default temperature",
+        },
     }
 
 
@@ -162,7 +181,7 @@ def generate_context_aware_guidance(
     matched_keypoints: list[dict],
     tags: list[str],
     playbook: dict,
-    diagnostic_name: str = "context_aware_guidance"
+    diagnostic_name: str = "context_aware_guidance",
 ) -> dict:
     """Generate guidance that's aware of matched key points.
 
@@ -171,28 +190,38 @@ def generate_context_aware_guidance(
     client, model = get_anthropic_client()
     if not client:
         if is_diagnostic_mode():
-            save_diagnostic("no client available for guidance generation", diagnostic_name)
+            save_diagnostic(
+                "no client available for guidance generation", diagnostic_name
+            )
         return {
             "complexity": "moderate",
-            "brief_guidance": "Cannot assess without client"
+            "brief_guidance": "Cannot assess without client",
         }
 
     # Prepare context from matched key points
     kpts_context = ""
     if matched_keypoints:
-        kpts_context = "\n".join([
-            f"- {kp.get('text', '')}"
-            for kp in matched_keypoints[:MAX_CONTEXT_KEYPOINTS]  # Limit to configured number for context
-        ])
+        kpts_context = "\n".join(
+            [
+                f"- {kp.get('text', '')}"
+                for kp in matched_keypoints[
+                    :MAX_CONTEXT_KEYPOINTS
+                ]  # Limit to configured number for context
+            ]
+        )
 
     # Build context-aware guidance prompt
     format_params = {
-        "conversation": json.dumps(messages[-MAX_CONVERSATION_MESSAGES:] if messages else [], indent=2, ensure_ascii=False),
+        "conversation": json.dumps(
+            messages[-MAX_CONVERSATION_MESSAGES:] if messages else [],
+            indent=2,
+            ensure_ascii=False,
+        ),
         "prompt": prompt_text,
         "matched_keypoints": kpts_context,
         "tags": ", ".join(tags),
         "has_keypoints": "Yes" if kpts_context else "No",
-        "existing_tags_context": f"Generated tags: {', '.join(tags)}"
+        "existing_tags_context": f"Generated tags: {', '.join(tags)}",
     }
 
     template = load_template("task_guidance_with_kpts.txt")
@@ -201,7 +230,9 @@ def generate_context_aware_guidance(
     prompt = template.format(**format_params)
 
     response = client.messages.create(
-        model=model, max_tokens=GUIDANCE_GENERATION_MAX_TOKENS, messages=[{"role": "user", "content": prompt}]
+        model=model,
+        max_tokens=GUIDANCE_GENERATION_MAX_TOKENS,
+        messages=[{"role": "user", "content": prompt}],
     )
 
     response_text_parts = []
@@ -219,10 +250,7 @@ def generate_context_aware_guidance(
         )
 
     if not response_text:
-        return {
-            "complexity": "moderate",
-            "brief_guidance": ""
-        }
+        return {"complexity": "moderate", "brief_guidance": ""}
     else:
         # Parse JSON response using common function
         parsed = extract_json_from_response(response_text)
@@ -236,10 +264,7 @@ def generate_context_aware_guidance(
                 guidance_result["complexity"] = "moderate"
         else:
             # Fallback to empty guidance
-            guidance_result = {
-                "complexity": "moderate",
-                "brief_guidance": ""
-            }
+            guidance_result = {"complexity": "moderate", "brief_guidance": ""}
 
     return guidance_result
 
@@ -248,7 +273,7 @@ def format_context_with_separate_sections(
     selected_key_points: list[dict],
     guidance_result: dict,
     tags: list[str],
-    temperature: float = 0.5
+    temperature: float = 0.5,
 ) -> str:
     """Format final context with separate sections for key points and guidance."""
     sections = []
@@ -332,7 +357,11 @@ def main():
 
         # Match key points based on tags with temperature
         selected_key_points = select_relevant_keypoints(
-            playbook, tags, limit=MAX_SELECTED_KEYPOINTS, prompt_tags=prompt_tags, temperature=temperature
+            playbook,
+            tags,
+            limit=MAX_SELECTED_KEYPOINTS,
+            prompt_tags=prompt_tags,
+            temperature=temperature,
         )
 
         # === Phase 2: Generate context-aware guidance using matched key points ===
@@ -364,10 +393,13 @@ def main():
                 "workflow": {
                     "phase": "Two-phase workflow completed",
                     "phase1": "Tags generated and kpts matched",
-                    "phase2": "Context-aware guidance generated"
-                }
+                    "phase2": "Context-aware guidance generated",
+                },
             }
-            save_diagnostic(json.dumps(diagnostic_payload, indent=2, ensure_ascii=False), "user_prompt_inject")
+            save_diagnostic(
+                json.dumps(diagnostic_payload, indent=2, ensure_ascii=False),
+                "user_prompt_inject",
+            )
 
         response = {
             "hookSpecificOutput": {
@@ -382,10 +414,17 @@ def main():
     except Exception as e:
         # Use global exception handler for consistent error logging and user feedback
         context_data = {
-            "input_data": input_data if 'input_data' in locals() else "Unable to capture",
-            "hook_stage": "main_execution"
+            "input_data": input_data
+            if "input_data" in locals()
+            else "Unable to capture",
+            "hook_stage": "main_execution",
         }
-        handler.handle_and_exit(e, "user_prompt_inject", context_data, session_id if 'session_id' in locals() else None)
+        handler.handle_and_exit(
+            e,
+            "user_prompt_inject",
+            context_data,
+            session_id if "session_id" in locals() else None,
+        )
 
 
 if __name__ == "__main__":
