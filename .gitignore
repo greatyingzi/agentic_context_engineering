@@ -1,0 +1,27 @@
+# Generated files in .claude directory (auto-created by hooks at runtime)
+.claude/playbook.json
+.claude/last_session.txt
+.claude/diagnostic/
+**/__pycache__/
+
+# Temporary development files and test scripts
+*_test.py
+test_*.py
+temp_*.py
+temp_start.py
+load_playbook_v2.py
+playbook_migration_v2.py
+
+# Temporary documentation and analysis drafts
+deep_analysis_prompt.md
+analysis_prefix.md
+
+# Temporary test directories
+tests/
+
+# IDE and editor temporary files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

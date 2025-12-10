@@ -1,0 +1,132 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-12-08T23:07:10.258573",
+  "key_points": [
+    {
+      "name": "kpt_001",
+      "text": "Analyze actual codebase and business logic before updating documentation to ensure accuracy over idealized representations.",
+      "score": 0,
+      "tags": [
+        "documentation",
+        "analysis",
+        "accuracy"
+      ]
+    },
+    {
+      "name": "kpt_002",
+      "text": "Maintain complete functional parity between bilingual documentation versions with language switch links prominently placed.",
+      "score": 2,
+      "tags": [
+        "documentation",
+        "i18n",
+        "sync"
+      ]
+    },
+    {
+      "name": "kpt_004",
+      "text": "Regenerate documentation from scratch after major code changes to maintain accuracy and relevance.",
+      "score": 2,
+      "tags": [
+        "documentation",
+        "updates",
+        "maintenance"
+      ]
+    },
+    {
+      "name": "kpt_005",
+      "text": "Document quantitative performance improvements with specific metrics (time, tokens, percentages) when refactoring.",
+      "score": 0,
+      "tags": [
+        "documentation",
+        "performance",
+        "metrics"
+      ]
+    },
+    {
+      "name": "kpt_006",
+      "text": "After committing new features or documentation, always push changes to remote repository immediately for synchronization.",
+      "score": 2,
+      "tags": [
+        "git",
+        "workflow",
+        "synchronization"
+      ]
+    },
+    {
+      "name": "kpt_007",
+      "text": "Update architecture documentation to reflect transitions from monolithic to modular design patterns.",
+      "score": 1,
+      "tags": [
+        "documentation",
+        "architecture",
+        "refactoring"
+      ]
+    },
+    {
+      "name": "kpt_008",
+      "text": "Prompt user to run /login upon 401 'Invalid bearer token' API errors to re-authenticate and recover access.",
+      "score": 46,
+      "tags": [
+        "authentication",
+        "error-handling",
+        "user-guidance"
+      ]
+    },
+    {
+      "name": "kpt_009",
+      "text": "Inform users about unrecognized slash commands to guide them toward correct inputs or documentation.",
+      "score": 1,
+      "tags": [
+        "user-interface",
+        "error-handling",
+        "guidance"
+      ]
+    },
+    {
+      "name": "kpt_010",
+      "text": "Use code exploration tools to analyze changes before updating documentation to ensure accuracy.",
+      "score": 1,
+      "tags": [
+        "documentation",
+        "analysis",
+        "workflow"
+      ]
+    },
+    {
+      "name": "kpt_011",
+      "text": "Break down documentation updates into smaller, logical commits for better tracking and review.",
+      "score": 2,
+      "tags": [
+        "git",
+        "documentation",
+        "workflow"
+      ]
+    },
+    {
+      "name": "kpt_012",
+      "text": "Update documentation immediately after adding new features to keep documentation current.",
+      "score": 2,
+      "tags": [
+        "documentation",
+        "features",
+        "timeliness"
+      ]
+    },
+    {
+      "name": "kpt_013",
+      "text": "Test keypoint for final verification",
+      "score": 1,
+      "tags": [
+        "test",
+        "verification",
+        "playbook",
+        "save"
+      ],
+      "adjustable": true
+    }
+  ],
+  "metadata": {
+    "last_updated": "",
+    "total_keypoints": 12
+  }
+}

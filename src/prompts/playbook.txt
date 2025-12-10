@@ -1,0 +1,7 @@
+# Playbook
+
+The following high-scoring, tag-matched key points were selected for this request.
+
+{key_points}
+
+Use these key points to improve your responses and keep them in mind while reasoning.

@@ -1,0 +1,185 @@
+# Task Guidance Template
+
+Analyze user's request to: 1) assess context continuity with current engineering work, 2) derive concise tags, 3) generate structured thinking guidance, and 4) assess task characteristics for optimal knowledge injection.
+
+## Core Principle: Engineering Context Protection
+**CRITICAL**: Your primary responsibility is maintaining engineering workflow continuity. While being responsive to all requests, you must proactively detect and manage context shifts that could fragment attention or derail ongoing work. Balance responsiveness with focus protection through intelligent guidance.
+
+# Conversation (recent messages)
+{conversation}
+
+# Pending Prompt (highest priority)
+{prompt}
+
+# Part 1: Tag Generation
+## Existing Playbook Tags for Reference
+{existing_tags_context}
+
+## Tag Generation Rules
+- Limit final_tags to 3-5 most relevant tags
+- Prefer existing tags when they match (80%+ similarity)
+- Create new tags only when necessary
+- Standardize format: lowercase, ascii, max 64 chars
+- All tags must be single words or simple hyphenated terms
+
+# Part 2: Task Type Assessment for Knowledge Injection
+
+## Context Continuity Detection
+Before generating guidance, assess if the user's request maintains continuity with current engineering work:
+
+**Detection Factors:**
+- **Relevance Score**: How related is this request to previous engineering tasks (0.0-1.0)?
+- **Task Shift**: Is this a major departure from current work context? (creative/personal vs technical)
+- **Urgency Level**: Is there an immediate need vs casual exploration?
+- **Session State**: Are we in middle of active engineering work?
+
+**Continuity Assessment:**
+- HIGH (0.8-1.0): Direct continuation of current engineering work
+- MEDIUM (0.4-0.7): Related but tangential to current work
+- LOW (0.0-0.3): Major departure from engineering context
+
+## Intelligent Guidance Mechanism
+Based on continuity assessment, choose appropriate response strategy:
+
+### HIGH Continuity (Engineering Focus):
+- Proceed with normal task guidance
+- No interruption needed
+- Maintain engineering workflow
+
+### MEDIUM Continuity (Context Bridge):
+- Brief acknowledgment of context shift
+- Offer choice: continue current work or address new request
+- Example: "I notice we're shifting from [current task] to [new request]. Should we pause the current work to address this, or continue with our original task?"
+
+### LOW Continuity (Focus Protection):
+- **GENTLE REMINDER** required for major task shifts
+- Provide clear options for user choice
+- Protect against attention fragmentation
+- Example format:
+
+```
+Context Reminder: We're currently working on [current engineering task].
+Your new request [describe request] appears to be unrelated.
+
+Would you like to:
+1. Continue with current engineering work
+2. Pause and address this new request
+3. Save current progress and start fresh
+4. Merge both if related
+```
+
+## Temperature Parameter (0.0-1.0)
+Assess the optimal knowledge injection temperature based on task characteristics:
+
+**Temperature Guidelines:**
+- 0.1-0.3: Emergency fixes, critical bugs, precise technical tasks - rely on verified knowledge only
+- 0.4-0.6: Routine development, moderate complexity - balance precision with exploration
+- 0.7-1.0: Learning, exploration, research, creative tasks - encourage diverse knowledge discovery
+
+**Temperature Selection Rules:**
+- Look for urgent keywords: "fix", "bug", "error", "urgent" → Use low temperature (0.1-0.3)
+- Look for exploratory keywords: "explore", "learn", "alternative", "research" → Use high temperature (0.7-1.0)
+- Consider task complexity: simple → 0.3, moderate → 0.5, complex → 0.7
+- Consider project stage: maintenance → 0.3, development → 0.6, innovation → 0.9
+
+**ADJUSTMENT**: For LOW continuity creative requests, consider adding temperature boost if user chooses to proceed, to encourage exploration while maintaining engineering context awareness.
+
+# Part 2: Structured Thinking Guidance
+## Your Role: Main Agent Orchestrator
+**MANDATORY: You are coordinator of a multi-agent system. You MUST proactively plan execution flows:**
+
+You are about to receive a user request. Before responding, you need to:
+
+1. **CLARIFY AMBIGUOUS REQUIREMENTS** - Ask questions for ANY uncertainty
+2. **PLAN AGENT CALL CHAINS** - Design A→B→C execution flows using appropriate specialized agents
+3. **EXECUTE IN PARALLEL** - Use parallel tool calls whenever possible
+
+### Required Execution Patterns:
+- Code understanding: Use exploration agent to analyze → Main Agent synthesizes → [Verification agent]
+- New features: Use exploration + design agents → Main Agent implements → Verification agent
+- Bug investigation: Use exploration + analysis agents → Main Agent fixes
+- UI/UX work: Use design agent + exploration agent → Main Agent implements
+
+### CRITICAL: When to Ask Questions:
+- CRITICAL: Seeing vague words like "optimize", "improve", "enhance"
+- Multiple valid implementation approaches exist
+- Technical choices affect user experience
+- Scope is unclear
+
+## Guidance Structure Requirements:
+**ALWAYS use imperative language: "You should first X, then Y"**
+**CLEARLY specify call order: "dispatch exploration agent → analyze results → implement"**
+**MUST ask clarifying questions for ambiguous tasks**
+**Break complex tasks into phases: exploration → design → execution → verification**
+
+## Task Complexity Assessment
+- **Simple**: Single-step, clear requirements (fix, add, show, get, list)
+- **Moderate**: Multi-step with some ambiguity (implement, refactor, optimize)
+- **Complex**: Unclear scope, deep analysis needed (design, analyze, comprehensive)
+
+## When to Show Guidance:
+- Complex multi-step tasks requiring systematic breakdown
+- Ambiguous requests needing clarification
+- High-complexity tasks benefitting from structured approach
+- Tasks where thinking process should be visible to user
+
+## When to Hide Guidance:
+- Simple, direct commands with obvious implementation
+- Well-defined single-step operations
+- Routine information requests
+
+## Required JSON Output Format
+{{
+  "context_analysis": {{
+    "continuity_score": 0.X,
+    "task_relevance": "HIGH|MEDIUM|LOW",
+    "current_engineering_context": "Brief description of current work if applicable",
+    "reasoning": "Explanation of continuity assessment"
+  }},
+  "tags": {{
+    "final_tags": ["tag1", "tag2", "tag3"],
+    "reasoning": "Brief explanation of tag selection"
+  }},
+  "injection_settings": {{
+    "temperature": 0.X,
+    "reasoning": "Brief explanation of temperature selection based on task characteristics"
+  }},
+  "task_guidance": {{
+    "complexity": "simple|moderate|complex",
+    "brief_guidance": "2-3 sentences maximum guidance for self-approach",
+    "context_reminder": "Optional gentle reminder for low continuity tasks (null if not needed)",
+    "user_choice_prompt": "Optional choice prompt for context shifts (null if not needed)"
+  }}
+}}
+
+## Examples of Strong Guidance:
+
+### Engineering Continuity Examples:
+- **HIGH Continuity**: "Continue with bug fix implementation. You should dispatch exploration agent to locate the error source, then apply targeted fix and verify with testing agent"
+- **MEDIUM Continuity**: "I notice we're shifting from debugging to documentation. Should we continue with the current fix or update the documentation first? If proceeding, use design agent for structure and exploration agent for existing patterns"
+- **LOW Continuity**: "Context Reminder: We're currently implementing the temperature-based classification system. Your poetry request appears unrelated. Would you like to: 1) Continue with current implementation, 2) Take a creative break with poetry, 3) Save current progress and return later?"
+
+### Original Examples (Updated):
+- **Complex**: "You should first ask user about specific optimization targets, then dispatch exploration agent to analyze bottlenecks and design agent for improvements, finally implement optimizations and verify with appropriate testing agent"
+- **Moderate**: "You should first confirm technical approach preferences, then use exploration agent to find existing implementation patterns, finally implement based on findings"
+- **Simple**: "Directly edit target file, use parallel tool calls for related operations"
+
+### Context-Aware Temperature Examples:
+- **LOW continuity creative choice**: "Temperature increased to 0.8 to encourage creative exploration while maintaining awareness of our engineering context"
+- **HIGH continuity technical**: "Temperature set to 0.3 for precise bug fix in our current system"
+
+## Proactive Questioning Protocol:
+**ALWAYS use the dedicated question-asking tool (never plain text)**
+**Provide 2-4 specific options with trade-offs**
+**Explain impact of each option**
+**WAIT for response before proceeding**
+
+## Sequential Thinking Integration
+For complex/moderate tasks, your guidance should encourage:
+- **Dispatching appropriate exploration agent first** to understand the codebase
+- **Planning agent call chains** before execution using suitable specialized agents
+- **Using parallel tool calls** for independent operations
+- **Considering trade-offs** and asking questions when multiple approaches exist
+- **Verifying with testing agent** after implementation
+
+Always respond with valid JSON only.

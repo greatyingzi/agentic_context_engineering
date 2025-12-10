@@ -1,0 +1,126 @@
+#!/bin/bash
+# Pre-commit hook to check documentation consistency
+# Ensures that if one language version of documentation is modified, the other is also updated
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}🔍 Checking documentation consistency...${NC}"
+
+# Get list of changed files in this commit
+changed_files=$(git diff --cached --name-only)
+
+# Documentation pairs to check (pattern pairs)
+declare -A doc_pairs=(
+    ["README.md"]="README.zh.md"
+    ["docs/README.md"]="docs/README.zh.md"
+    ["docs/CONTRIBUTING.md"]="docs/CONTRIBUTING.zh.md"
+)
+
+# Track warnings
+warnings=0
+
+# Check each documentation pair
+for english_file in "${!doc_pairs[@]}"; do
+    chinese_file="${doc_pairs[$english_file]}"
+
+    # Check if either file exists in the repository
+    english_exists=false
+    chinese_exists=false
+
+    if [ -f "$english_file" ]; then
+        english_exists=true
+    fi
+
+    if [ -f "$chinese_file" ]; then
+        chinese_exists=true
+    fi
+
+    # Skip if both files don't exist
+    if [ "$english_exists" = false ] && [ "$chinese_exists" = false ]; then
+        continue
+    fi
+
+    # Check modifications
+    english_modified=false
+    chinese_modified=false
+
+    # Check if English file is in staged changes
+    if echo "$changed_files" | grep -q "^${english_file}$"; then
+        english_modified=true
+    fi
+
+    # Check if Chinese file is in staged changes
+    if echo "$changed_files" | grep -q "^${chinese_file}$"; then
+        chinese_modified=true
+    fi
+
+    # Special case: README files
+    if [[ "$english_file" == "README.md" ]]; then
+        if [ "$english_modified" = true ] && [ "$chinese_modified" = false ]; then
+            echo -e "${YELLOW}⚠️  WARNING: README.md was modified but README.zh.md was not.${NC}"
+            echo -e "${YELLOW}   Please ensure both language versions are updated for consistency.${NC}"
+            echo -e "${YELLOW}   If you only meant to update the English version, consider updating README.zh.md as well.${NC}"
+            echo ""
+            warnings=$((warnings + 1))
+        elif [ "$chinese_modified" = true ] && [ "$english_modified" = false ]; then
+            echo -e "${YELLOW}⚠️  WARNING: README.zh.md was modified but README.md was not.${NC}"
+            echo -e "${YELLOW}   Please ensure both language versions are updated for consistency.${NC}"
+            echo -e "${YELLOW}   If you only meant to update the Chinese version, consider updating README.md as well.${NC}"
+            echo ""
+            warnings=$((warnings + 1))
+        fi
+    fi
+
+    # General case for other documentation files
+    if [ "$english_modified" = true ] && [ "$chinese_modified" = false ] && [ "$chinese_exists" = true ]; then
+        echo -e "${YELLOW}⚠️  WARNING: $english_file was modified but $chinese_file was not.${NC}"
+        echo -e "${YELLOW}   Please ensure both language versions are updated for consistency.${NC}"
+        echo ""
+        warnings=$((warnings + 1))
+    elif [ "$chinese_modified" = true ] && [ "$english_modified" = false ] && [ "$english_exists" = true ]; then
+        echo -e "${YELLOW}⚠️  WARNING: $chinese_file was modified but $english_file was not.${NC}"
+        echo -e "${YELLOW}   Please ensure both language versions are updated for consistency.${NC}"
+        echo ""
+        warnings=$((warnings + 1))
+    fi
+done
+
+# Check for documentation file patterns that might need translation
+# Look for newly added documentation files without corresponding language versions
+new_files=$(git diff --cached --name-only --diff-filter=A)
+
+for new_file in $new_files; do
+    # Check if it's a markdown file ending with .md (but not .zh.md)
+    if [[ "$new_file" == *.md ]] && [[ "$new_file" != *.zh.md ]]; then
+        # Check if a Chinese version exists
+        base_name="${new_file%.md}"
+        chinese_file="${base_name}.zh.md"
+
+        if [ ! -f "$chinese_file" ]; then
+            echo -e "${YELLOW}⚠️  INFO: New documentation file $new_file was added.${NC}"
+            echo -e "${YELLOW}   Consider adding a Chinese version $chinese_file for bilingual documentation.${NC}"
+            echo ""
+        fi
+    fi
+done
+
+# Final decision
+if [ $warnings -gt 0 ]; then
+    echo -e "${YELLOW}📝 Documentation consistency check found $warnings warning(s).${NC}"
+    echo -e "${YELLOW}   You can still commit, but please consider updating the missing documentation.${NC}"
+    echo ""
+    read -p "Do you want to continue with the commit? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${RED}❌ Commit aborted by user.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}✅ Documentation consistency check passed!${NC}"
+fi
+
+exit 0

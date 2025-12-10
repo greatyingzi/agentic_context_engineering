@@ -1,0 +1,512 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KPT A/B Testing Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background-color: #f0f0f0; padding: 20px; border-radius: 5px; }
+        .scenario { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .metric { margin: 10px 0; padding: 10px; background-color: #f9f9f9; }
+        .improvement { font-weight: bold; }
+        .positive { color: green; }
+        .negative { color: red; }
+        .neutral { color: orange; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>KPT Context-Aware Parameter Weighting A/B Test Report</h1>
+        <p>Generated on: 2025-12-10 17:29:15</p>
+        <p>Comparing Old Hardcoded Weights vs New Context-Aware Weights</p>
+    </div>
+
+    <div class="scenario">
+        <h2>Scenario: urgent_bug_fix</h2>
+        <p><strong>Description:</strong> Urgent bug fix context with critical priority</p>
+        <p><strong>Expected Context:</strong> urgent</p>
+        <p><strong>Sample Size:</strong> 10 (Old) vs 10 (New)</p>
+
+        <h3>Metrics Comparison</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Old System (μ±σ)</th>
+                <th>New System (μ±σ)</th>
+                <th>Improvement</th>
+                <th>P-Value</th>
+                <th>Significance</th>
+            </tr>
+
+            <tr>
+                <td><strong>Execution Time</strong></td>
+                <td>0.001±0.000</td>
+                <td>0.001±0.000</td>
+                <td class="positive improvement">+0.1%</td>
+                <td>0.050</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Memory Usage</strong></td>
+                <td>0.005±0.003</td>
+                <td>0.004±0.000</td>
+                <td class="negative improvement">-16.7%</td>
+                <td>0.050</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Selected Knowledge Count</strong></td>
+                <td>3.000±0.000</td>
+                <td>3.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>High Confidence Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Recommendation Count</strong></td>
+                <td>1.000±0.000</td>
+                <td>1.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Avg Relevance Score</strong></td>
+                <td>61.363±0.000</td>
+                <td>64.375±0.000</td>
+                <td class="positive improvement">+4.9%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Diversity Score</strong></td>
+                <td>0.900±0.000</td>
+                <td>0.900±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Layer Balance Ratio</strong></td>
+                <td>0.333±0.000</td>
+                <td>0.333±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Token Usage Estimate</strong></td>
+                <td>251.000±0.000</td>
+                <td>251.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Effectiveness Score</strong></td>
+                <td>0.800±0.000</td>
+                <td>0.800±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Risk Score</strong></td>
+                <td>-0.600±0.000</td>
+                <td>-0.600±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="scenario">
+        <h2>Scenario: production_deployment</h2>
+        <p><strong>Description:</strong> Production deployment with customer impact</p>
+        <p><strong>Expected Context:</strong> production</p>
+        <p><strong>Sample Size:</strong> 10 (Old) vs 10 (New)</p>
+
+        <h3>Metrics Comparison</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Old System (μ±σ)</th>
+                <th>New System (μ±σ)</th>
+                <th>Improvement</th>
+                <th>P-Value</th>
+                <th>Significance</th>
+            </tr>
+
+            <tr>
+                <td><strong>Execution Time</strong></td>
+                <td>0.001±0.000</td>
+                <td>0.001±0.000</td>
+                <td class="positive improvement">+2.5%</td>
+                <td>0.050</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Memory Usage</strong></td>
+                <td>0.004±0.000</td>
+                <td>0.004±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Selected Knowledge Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>High Confidence Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Recommendation Count</strong></td>
+                <td>0.000±0.000</td>
+                <td>0.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Avg Relevance Score</strong></td>
+                <td>63.270±0.000</td>
+                <td>65.835±0.000</td>
+                <td class="positive improvement">+4.1%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Diversity Score</strong></td>
+                <td>0.857±0.000</td>
+                <td>0.857±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Layer Balance Ratio</strong></td>
+                <td>0.000±0.000</td>
+                <td>0.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Token Usage Estimate</strong></td>
+                <td>178.000±0.000</td>
+                <td>178.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Effectiveness Score</strong></td>
+                <td>0.900±0.000</td>
+                <td>0.900±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Risk Score</strong></td>
+                <td>-0.650±0.000</td>
+                <td>-0.650±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="scenario">
+        <h2>Scenario: research_exploration</h2>
+        <p><strong>Description:</strong> Research exploration with innovation focus</p>
+        <p><strong>Expected Context:</strong> exploratory</p>
+        <p><strong>Sample Size:</strong> 10 (Old) vs 10 (New)</p>
+
+        <h3>Metrics Comparison</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Old System (μ±σ)</th>
+                <th>New System (μ±σ)</th>
+                <th>Improvement</th>
+                <th>P-Value</th>
+                <th>Significance</th>
+            </tr>
+
+            <tr>
+                <td><strong>Execution Time</strong></td>
+                <td>0.001±0.000</td>
+                <td>0.001±0.000</td>
+                <td class="positive improvement">+2.5%</td>
+                <td>0.010</td>
+                <td class="positive">Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Memory Usage</strong></td>
+                <td>0.004±0.000</td>
+                <td>0.004±0.000</td>
+                <td class="negative improvement">-2.9%</td>
+                <td>0.050</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Selected Knowledge Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>High Confidence Count</strong></td>
+                <td>0.000±0.000</td>
+                <td>0.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Recommendation Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Avg Relevance Score</strong></td>
+                <td>48.520±0.000</td>
+                <td>60.120±0.000</td>
+                <td class="positive improvement">+23.9%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Diversity Score</strong></td>
+                <td>1.000±0.000</td>
+                <td>1.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Layer Balance Ratio</strong></td>
+                <td>1.000±0.000</td>
+                <td>1.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Token Usage Estimate</strong></td>
+                <td>178.000±0.000</td>
+                <td>178.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Effectiveness Score</strong></td>
+                <td>0.450±0.000</td>
+                <td>0.450±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Risk Score</strong></td>
+                <td>0.200±0.000</td>
+                <td>0.200±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="scenario">
+        <h2>Scenario: generic_development</h2>
+        <p><strong>Description:</strong> Generic development work</p>
+        <p><strong>Expected Context:</strong> generic</p>
+        <p><strong>Sample Size:</strong> 10 (Old) vs 10 (New)</p>
+
+        <h3>Metrics Comparison</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Old System (μ±σ)</th>
+                <th>New System (μ±σ)</th>
+                <th>Improvement</th>
+                <th>P-Value</th>
+                <th>Significance</th>
+            </tr>
+
+            <tr>
+                <td><strong>Execution Time</strong></td>
+                <td>0.001±0.000</td>
+                <td>0.001±0.000</td>
+                <td class="positive improvement">+0.1%</td>
+                <td>0.050</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Memory Usage</strong></td>
+                <td>0.004±0.000</td>
+                <td>0.004±0.000</td>
+                <td class="negative improvement">-2.9%</td>
+                <td>0.050</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Selected Knowledge Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>High Confidence Count</strong></td>
+                <td>2.000±0.000</td>
+                <td>2.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Recommendation Count</strong></td>
+                <td>0.000±0.000</td>
+                <td>0.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Avg Relevance Score</strong></td>
+                <td>46.770±0.000</td>
+                <td>46.770±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Diversity Score</strong></td>
+                <td>0.833±0.000</td>
+                <td>0.833±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Layer Balance Ratio</strong></td>
+                <td>0.000±0.000</td>
+                <td>0.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Token Usage Estimate</strong></td>
+                <td>147.000±0.000</td>
+                <td>147.000±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Effectiveness Score</strong></td>
+                <td>0.750±0.000</td>
+                <td>0.750±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+            <tr>
+                <td><strong>Risk Score</strong></td>
+                <td>-0.550±0.000</td>
+                <td>-0.550±0.000</td>
+                <td class="neutral improvement">0.0%</td>
+                <td>1.000</td>
+                <td class="neutral">Not Significant</td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="header">
+        <h2>Overall Summary</h2>
+        <p><strong>Key Findings:</strong></p>
+        <ul>
+            <li>📈 research_exploration - Execution Time: +2.5%</li>
+
+        </ul>
+    </div>
+</body>
+</html>

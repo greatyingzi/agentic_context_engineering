@@ -1,0 +1,297 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { spawnSync } = require('child_process');
+
+// Color output helpers
+const colors = {
+  reset: '\x1b[0m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  red: '\x1b[31m',
+};
+
+function log(msg, color = 'reset') {
+  console.log(`${colors[color]}${msg}${colors.reset}`);
+}
+
+// Get platform info
+const isWindows = process.platform === 'win32';
+
+// Get paths
+const homeDir = os.homedir();
+const claudeDir = path.join(homeDir, '.claude');
+const hooksDir = path.join(claudeDir, 'hooks');
+const scriptsDir = path.join(claudeDir, 'scripts');
+const settingsPath = path.join(claudeDir, 'settings.json');
+const venvPath = path.join(claudeDir, '.venv');
+
+// Platform-specific Python paths
+const venvPython = isWindows
+    ? path.join(venvPath, 'Scripts', 'python.exe')
+    : path.join(venvPath, 'bin', 'python3');
+const sourceDir = path.join(__dirname, 'src');
+const sourceScriptsDir = path.join(__dirname, 'scripts');
+
+// Ensure directory exists
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+// Copy directory recursively (excluding settings.json)
+function copyDir(src, dest) {
+  ensureDir(dest);
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else if (entry.name !== 'settings.json') {
+      // Skip settings.json (handled separately)
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+// Merge settings.json
+function mergeSettings(srcSettingsPath) {
+  // Load source settings with placeholder replacement
+  let srcSettings = {};
+  if (fs.existsSync(srcSettingsPath)) {
+    try {
+      let content = fs.readFileSync(srcSettingsPath, 'utf-8');
+
+      // Replace placeholders with actual hook commands
+      const hooks = {
+        'HOOK_COMMAND_USER_PROMPT_INJECT': 'user_prompt_inject.py',
+        'HOOK_COMMAND_SESSION_END': 'session_end.py',
+        'HOOK_COMMAND_PRECOMPACT': 'precompact.py'
+      };
+
+      for (const [placeholder, scriptName] of Object.entries(hooks)) {
+        // Platform-specific command generation
+        const scriptPath = path.join(hooksDir, scriptName);
+        const command = isWindows
+            ? `"${venvPython}" "${scriptPath}"`
+            : `${venvPython} "${scriptPath}"`;
+        content = content.replace(
+          new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'),
+          JSON.stringify(command).slice(1, -1)
+        );
+      }
+
+      srcSettings = JSON.parse(content);
+    } catch (e) {
+      log(`⚠ Failed to parse source settings: ${e.message}`, 'yellow');
+    }
+  }
+
+  // Load destination settings
+  let destSettings = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      destSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    } catch (e) {
+      log(`⚠ Failed to parse destination settings: ${e.message}`, 'yellow');
+    }
+  }
+
+  // Merge hooks
+  if (srcSettings.hooks) {
+    if (!destSettings.hooks) {
+      destSettings.hooks = {};
+    }
+
+    for (const [eventName, eventHooks] of Object.entries(srcSettings.hooks)) {
+      if (!destSettings.hooks[eventName]) {
+        destSettings.hooks[eventName] = [];
+      }
+
+      // Only add hooks that don't already exist (check by command)
+      for (const hookGroup of eventHooks) {
+        const existingCommands = new Set(
+          destSettings.hooks[eventName]
+            .flatMap(g => g.hooks || [])
+            .map(h => h.command)
+        );
+
+        const newHooks = (hookGroup.hooks || []).filter(
+          h => !existingCommands.has(h.command)
+        );
+
+        if (newHooks.length > 0) {
+          destSettings.hooks[eventName].push({
+            ...hookGroup,
+            hooks: newHooks
+          });
+        }
+      }
+    }
+  }
+
+  // Merge other top-level properties
+  for (const [key, value] of Object.entries(srcSettings)) {
+    if (key !== 'hooks' && !(key in destSettings)) {
+      destSettings[key] = value;
+    }
+  }
+
+  return destSettings;
+}
+
+// Save settings.json
+function saveSettings(settings) {
+  ensureDir(path.dirname(settingsPath));
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+}
+
+// Run a command; return true if exit 0
+function run(cmd, args, opts = {}) {
+  const res = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
+  return res.status === 0;
+}
+
+// Ensure uv venv exists and anthropic is installed
+function ensureVenvAndDeps() {
+  // Check for Python installation first
+  const pythonCmd = isWindows ? 'python' : 'python3';
+  const pythonExists = run(pythonCmd, ['--version'], { stdio: 'ignore' });
+
+  if (!pythonExists) {
+    log('⚠ Python not found. Please install Python from python.org and add to PATH', 'red');
+    log('💡 Windows users: Make sure to check "Add Python to PATH" during installation', 'yellow');
+    return;
+  }
+
+  const uvExists = run('uv', ['--version'], { stdio: 'ignore' });
+  if (!uvExists) {
+    log('⚠ uv not found; attempting to create venv with standard Python...', 'yellow');
+
+    if (!fs.existsSync(venvPath)) {
+      log(`ℹ Creating venv at ${venvPath} using python -m venv...`, 'blue');
+      if (!run(pythonCmd, ['-m', 'venv', venvPath])) {
+        log('⚠ Failed to create venv with python -m venv', 'yellow');
+        log('💡 Try installing uv from https://github.com/astral-sh/uv for better dependency management', 'yellow');
+        return;
+      }
+    }
+
+    // Upgrade pip and install anthropic
+    log('ℹ Installing anthropic package...', 'blue');
+    run(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip']);
+    run(venvPython, ['-m', 'pip', 'install', 'anthropic']);
+  } else {
+    // Use uv for venv creation and dependency management
+    if (!fs.existsSync(venvPath)) {
+      log(`ℹ Creating venv at ${venvPath} via uv...`, 'blue');
+      if (!run('uv', ['venv', venvPath])) {
+        log('⚠ Failed to create venv with uv.', 'yellow');
+        return;
+      }
+    }
+
+    log('ℹ Ensuring anthropic is installed in venv via uv...', 'blue');
+    run('uv', ['pip', 'install', '--python', venvPython, 'anthropic']);
+  }
+
+  log('✓ Virtual environment and dependencies ready', 'green');
+}
+
+// Windows-specific checks
+function windowsSpecificChecks() {
+  if (isWindows) {
+    // Check for common Windows issues
+    log('🔍 Running Windows-specific checks...', 'blue');
+
+    // Check if running in PowerShell with proper execution policy
+    if (process.env.PSModulePath) {
+      log('ℹ PowerShell detected. Ensure execution policy allows script execution', 'yellow');
+      log('💡 Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser', 'yellow');
+    }
+
+    // Warn about antivirus interference
+    log('⚠ If installation fails, check if antivirus is blocking files', 'yellow');
+    log('💡 Add ~/.claude directory to antivirus exclusions if needed', 'yellow');
+
+    // Check for long path support
+    log('ℹ Windows long paths should be enabled for better compatibility', 'blue');
+  }
+}
+
+// Main installation function
+function install() {
+  log('\n=== Agentic Context Engineering Installation ===\n', 'blue');
+
+  try {
+    // Windows-specific checks
+    windowsSpecificChecks();
+
+    // Step 1: Check source directory
+    if (!fs.existsSync(sourceDir)) {
+      log('❌ Source directory not found!', 'red');
+      process.exit(1);
+    }
+    log('✓ Found source directory', 'green');
+
+    // Step 2: Copy hooks and prompts to ~/.claude/
+    log(`ℹ Copying files to ${claudeDir}...`, 'blue');
+    copyDir(sourceDir, claudeDir);
+    log('✓ Files copied to ~/.claude/', 'green');
+
+    // Step 2b: Copy helper scripts (e.g., bootstrap_playbook.py) to ~/.claude/scripts
+    if (fs.existsSync(sourceScriptsDir)) {
+      log(`ℹ Copying helper scripts to ${scriptsDir}...`, 'blue');
+      copyDir(sourceScriptsDir, scriptsDir);
+      log('✓ Scripts copied to ~/.claude/scripts', 'green');
+    }
+
+    // Step 3: Create venv and install deps
+    ensureVenvAndDeps();
+
+    // Step 3: Merge settings.json
+    log('ℹ Merging settings.json...', 'blue');
+    const srcSettingsPath = path.join(sourceDir, 'settings.json');
+    if (fs.existsSync(srcSettingsPath)) {
+      const mergedSettings = mergeSettings(srcSettingsPath);
+      saveSettings(mergedSettings);
+      log('✓ Settings merged successfully', 'green');
+    } else {
+      log('⚠ No settings.json found in source directory', 'yellow');
+    }
+
+    // Display installation results
+    log('\n=== Installation Complete! ===\n', 'green');
+    log('ℹ Hook files installed to:', 'blue');
+    console.log(`  ${claudeDir}/hooks/`);
+    console.log(`  ${claudeDir}/prompts/`);
+    log('ℹ User settings updated at:', 'blue');
+    console.log(`  ${settingsPath}\n`);
+    log('📝 Next steps:', 'yellow');
+    console.log('1. Restart Claude Code or start a new session');
+    console.log('2. Hooks are now active at user level (work across all projects)');
+    console.log('3. Check ~/.claude/settings.json to verify hook registration');
+
+    if (isWindows) {
+      console.log('\n🪟 Windows-specific notes:');
+      console.log('- If hooks don\'t trigger, check PowerShell execution policy');
+      console.log('- Add ~/.claude to antivirus exclusions if needed');
+      console.log('- Use python.exe instead of python3 for manual script execution');
+    }
+
+  } catch (err) {
+    log(`❌ Installation failed: ${err.message}`, 'red');
+    console.error(err);
+    process.exit(1);
+  }
+}
+
+// Run installation
+install();

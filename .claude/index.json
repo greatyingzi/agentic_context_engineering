@@ -1,0 +1,129 @@
+{
+  "scan_timestamp": "2025-12-09T22:14:39",
+  "project_summary": "agentic_context_engineering",
+  "repository_stats": {
+    "total_files": 11,
+    "scanned_files": 9,
+    "coverage_percentage": 81.8,
+    "ignored_files": 2
+  },
+  "modules": [
+    {
+      "path": "src/hooks",
+      "type": "python",
+      "language": "Python",
+      "entry_files": [
+        "src/hooks/user_prompt_inject.py",
+        "src/hooks/session_end.py",
+        "src/hooks/precompact.py"
+      ],
+      "interfaces": [
+        "Claude Code hook integration",
+        "Anthropic Claude API"
+      ],
+      "tests": "Manual testing via Claude Code sessions",
+      "important_files": [
+        "src/hooks/common.py",
+        "src/hooks/playbook_engine.py",
+        "src/hooks/file_utils.py"
+      ],
+      "documentation_created": true
+    },
+    {
+      "path": "src/hooks/utils",
+      "type": "python",
+      "language": "Python",
+      "entry_files": [
+        "src/hooks/utils/path_utils.py",
+        "src/hooks/utils/tag_utils.py"
+      ],
+      "interfaces": [
+        "Path management utilities",
+        "Tag normalization and inference"
+      ],
+      "tests": "Unit tests for utility functions",
+      "important_files": [
+        "src/hooks/utils/__init__.py"
+      ],
+      "documentation_created": true
+    },
+    {
+      "path": "scripts",
+      "type": "python",
+      "language": "Python",
+      "entry_files": [
+        "scripts/bootstrap_playbook.py"
+      ],
+      "interfaces": [
+        "Command line interface",
+        "Claude Code command integration"
+      ],
+      "tests": "Mock historical data testing",
+      "important_files": [],
+      "documentation_created": true
+    },
+    {
+      "path": "src/prompts",
+      "type": "templates",
+      "language": "Text",
+      "entry_files": [
+        "src/prompts/task_guidance.txt",
+        "src/prompts/reflection.txt",
+        "src/prompts/tagger.txt",
+        "src/prompts/playbook.txt"
+      ],
+      "interfaces": [
+        "LLM prompt templates"
+      ],
+      "tests": "Template validation",
+      "important_files": [],
+      "documentation_created": false
+    },
+    {
+      "path": "src/commands",
+      "type": "commands",
+      "language": "Markdown",
+      "entry_files": [
+        "src/commands/init-playbook.md"
+      ],
+      "interfaces": [
+        "Claude Code custom commands"
+      ],
+      "tests": "Command registration testing",
+      "important_files": [],
+      "documentation_created": false
+    }
+  ],
+  "root_level_files": {
+    "package.json": "Node.js project configuration",
+    "install.js": "Installation script",
+    "README.md": "Project documentation",
+    "CLAUDE.md": "AI context documentation"
+  },
+  "scan_coverage": {
+    "completed": [
+      "src/hooks/",
+      "src/hooks/utils/",
+      "scripts/",
+      "root documentation"
+    ],
+    "gaps": [
+      "src/prompts/ - LLM prompt templates not documented",
+      "src/commands/ - Custom commands not documented",
+      "Integration workflows between modules need deeper analysis"
+    ],
+    "recommendations": [
+      "Document prompt templates in src/prompts/",
+      "Document custom commands in src/commands/",
+      "Create workflow diagrams showing hook interactions",
+      "Add examples of typical knowledge extraction cycles"
+    ]
+  },
+  "truncated": false,
+  "next_steps": [
+    "Document prompt templates module (src/prompts/)",
+    "Document custom commands module (src/commands/)",
+    "Create integration workflow documentation",
+    "Add real-world usage examples"
+  ]
+}

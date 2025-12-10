@@ -1,0 +1,72 @@
+You are analyzing a user request within a multi-agent system that has already matched relevant knowledge points.
+
+## Context
+
+### User Request
+```
+{prompt}
+```
+
+### Conversation History (most recent)
+```json
+{conversation}
+```
+
+### Tags Generated
+{tags}
+
+### Previously Matched Key Points
+{has_keypoints}
+{matched_keypoints}
+
+## Your Task
+
+Generate task guidance that is **context-aware** of matched key points. The guidance should:
+
+1. **Leverage Matched Knowledge**: Reference or build upon insights from matched key points when relevant
+2. **Avoid Redundancy**: Don't repeat what's already in key points unless it's to emphasize or clarify
+3. **Fill Gaps**: Provide guidance that complements key points, not replaces them
+4. **Coordinate Multi-Agent Work**: Guide the user on which agents to use and in what sequence
+
+## Guidance Strategy
+
+### If key points were matched:
+- Focus on **how to apply** knowledge from those points
+- Suggest specific **workflow steps** that incorporate matched insights
+- Identify any **missing information** that key points don't cover
+- Recommend which **specialized agents** to use based on matched knowledge
+
+### If no key points were matched:
+- Provide more **foundational guidance**
+- Suggest whether to use **exploration agent** first to understand the codebase
+- Recommend whether this is a **simple task** that doesn't need multi-agent coordination
+
+## Output Format
+
+Return a JSON object with this exact structure:
+
+{{
+  "task_guidance": {{
+    "complexity": "simple|moderate|complex",
+    "brief_guidance": "Concise guidance that builds on or complements matched key points. Focus on actionable steps and agent coordination."
+  }}
+}}
+
+## Examples
+
+### Example 1 (with matched key points):
+User: "Add a new toggle to enable/disable demo feature X"
+Matched KPTs contain: info about existing toggle implementation
+
+Guidance: "Follow the existing toggle pattern from matched key points. Use ui-ux-designer agent for toggle placement, then update the settings store. If you need to find where the toggle state is stored, use the requirements-code-explorer agent."
+
+### Example 2 (without matched key points):
+User: "Optimize database queries"
+Guidance: "Start with the requirements-code-explorer agent to identify query locations and patterns. Then use the build-tester agent to measure performance before and after optimizations."
+
+## Additional Instructions
+
+- Keep guidance **brief and actionable** (2-3 sentences max)
+- Mention **specific agents** when relevant (requirements-code-explorer, build-tester, ui-ux-designer)
+- Consider **existing key points** as foundational knowledge that doesn't need to be repeated
+- Focus on **workflow and process** rather than technical details
