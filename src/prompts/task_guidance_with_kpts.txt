@@ -58,15 +58,15 @@ Return a JSON object with this exact structure:
 User: "Add a new toggle to enable/disable demo feature X"
 Matched KPTs contain: info about existing toggle implementation
 
-Guidance: "Follow the existing toggle pattern from matched key points. Use ui-ux-designer agent for toggle placement, then update the settings store. If you need to find where the toggle state is stored, use the requirements-code-explorer agent."
+Guidance: "Follow the existing toggle pattern from matched key points. Use design agent for toggle placement, then update the settings store. If you need to find where the toggle state is stored, use the exploration agent."
 
 ### Example 2 (without matched key points):
 User: "Optimize database queries"
-Guidance: "Start with the requirements-code-explorer agent to identify query locations and patterns. Then use the build-tester agent to measure performance before and after optimizations."
+Guidance: "Start with the exploration agent to identify query locations and patterns. Then use the testing agent to measure performance before and after optimizations."
 
 ## Additional Instructions
 
 - Keep guidance **brief and actionable** (2-3 sentences max)
-- Mention **specific agents** when relevant (requirements-code-explorer, build-tester, ui-ux-designer)
+- Mention **specific agents** when relevant (exploration, testing, design, analysis) - use generic descriptions
 - Consider **existing key points** as foundational knowledge that doesn't need to be repeated
 - Focus on **workflow and process** rather than technical details
