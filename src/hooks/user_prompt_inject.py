@@ -247,18 +247,44 @@ def generate_context_aware_guidance(
 def format_context_with_separate_sections(
     selected_key_points: list[dict],
     guidance_result: dict,
-    tags: list[str]
+    tags: list[str],
+    temperature: float = 0.5
 ) -> str:
     """Format final context with separate sections for key points and guidance."""
     sections = []
+
+    # Add temperature info header
+    temp_info = f"🌡️ **Temperature: {temperature:.2f}** "
+    if temperature <= 0.3:
+        temp_info += "(Conservative: High Confidence priority)"
+    elif temperature >= 0.7:
+        temp_info += "(Exploratory: Recommendation priority)"
+    else:
+        temp_info += "(Balanced: Mixed selection)"
+
+    sections.append(temp_info)
 
     # Section 1: Matched Key Points
     if selected_key_points:
         kpts_section = "### 📚 Matched Key Points\n\n"
         for kp in selected_key_points:
             score = kp.get("score", 0)
-            score_emoji = "🟢" if score > 0 else "🔴" if score < 0 else "⚪"
-            kpts_section += f"{score_emoji} **{kp.get('text', '')}**\n"
+            layer = kp.get("_layer", "UNKNOWN")
+            total_match = kp.get("_total_match", 0)
+
+            # Layer-based styling
+            if layer == "HIGH_CONFIDENCE":
+                layer_emoji = "🔷"  # Blue diamond for high confidence
+                layer_label = "HC"
+            elif layer == "RECOMMENDATION":
+                layer_emoji = "🟢"  # Green circle for recommendation
+                layer_label = "RC"
+            else:
+                layer_emoji = "⚪"  # White circle for unknown
+                layer_label = "??"
+
+            # Format with layer and score information
+            kpts_section += f"{layer_emoji} **[{layer_label}] {kp.get('text', '')}** (match: {total_match:.2f})\n"
         sections.append(kpts_section)
 
     # Section 2: Task Guidance
@@ -318,7 +344,7 @@ def main():
 
         # Format context with separate sections
         context = format_context_with_separate_sections(
-            selected_key_points, guidance_result, tags
+            selected_key_points, guidance_result, tags, temperature
         )
 
         if not context.strip():
