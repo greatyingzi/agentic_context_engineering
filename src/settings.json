@@ -1,6 +1,8 @@
 {
   "playbook_update_on_exit": true,
   "playbook_update_on_clear": true,
+  "document_scanning_enabled": true,
+  "git_scanning_enabled": true,
   "hooks": {
     "UserPromptSubmit": [
       {

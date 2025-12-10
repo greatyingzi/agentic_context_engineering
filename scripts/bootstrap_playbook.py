@@ -28,7 +28,11 @@ try:
         save_playbook,
         save_diagnostic,
         update_playbook_data,
+        load_settings,
     )
+    # Import document and Git scanners
+    from src.hooks.document_scanner import extract_document_knowledge
+    from src.hooks.git_scanner import extract_git_knowledge
 except ModuleNotFoundError:
     from hooks.common import (  # type: ignore  # noqa: E402
         extract_keypoints,
@@ -38,7 +42,10 @@ except ModuleNotFoundError:
         save_playbook,
         save_diagnostic,
         update_playbook_data,
+        load_settings,
     )
+    from hooks.document_scanner import extract_document_knowledge
+    from hooks.git_scanner import extract_git_knowledge
 
 ENV_FILE = Path.home() / ".claude" / "env"
 
@@ -222,6 +229,38 @@ async def bootstrap_playbook(
             diag(f"[warn] {transcript_path.name}: {exc}")
             continue
 
+    # After processing transcripts, extract additional knowledge from documents and Git
+    print("\n[info] Extracting knowledge from documents and Git history...")
+
+    # Load settings to check what scanning is enabled
+    settings = load_settings()
+
+    # Extract knowledge from documents if enabled
+    if settings.get("document_scanning_enabled", False):
+        print("[scanning] Extracting knowledge from project documents...")
+        doc_result = await extract_document_knowledge(playbook)
+        doc_points = doc_result.get("new_key_points", [])
+
+        if doc_points:
+            playbook = update_playbook_data(playbook, doc_result)
+            new_points += len(doc_points)
+            print(f"[ok] extracted {len(doc_points)} key points from documents")
+            if diagnostic_enabled:
+                diag(f"[documents] extracted {len(doc_points)} key points")
+
+    # Extract knowledge from Git history if enabled
+    if settings.get("git_scanning_enabled", False):
+        print("[scanning] Extracting knowledge from Git history...")
+        git_result = await extract_git_knowledge(playbook)
+        git_points = git_result.get("new_key_points", [])
+
+        if git_points:
+            playbook = update_playbook_data(playbook, git_result)
+            new_points += len(git_points)
+            print(f"[ok] extracted {len(git_points)} key points from Git history")
+            if diagnostic_enabled:
+                diag(f"[git] extracted {len(git_points)} key points")
+
     save_playbook(playbook)
     summary = (
         f"[done] processed={processed}, added≈{new_points}, "
@@ -244,6 +283,16 @@ async def bootstrap_playbook(
         f"Processed {processed} transcripts, added ~{new_points} key points, "
         f"total key points: {len(playbook.get('key_points', []))}."
     )
+    print("\n[info] Knowledge extraction summary:")
+    print("  - Historical conversations: ✓")
+    if settings.get("document_scanning_enabled", False):
+        print("  - Project documents: ✓")
+    else:
+        print("  - Project documents: ✗ (disabled)")
+    if settings.get("git_scanning_enabled", False):
+        print("  - Git history: ✓")
+    else:
+        print("  - Git history: ✗ (disabled)")
 
 
 def parse_args():

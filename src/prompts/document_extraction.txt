@@ -1,0 +1,47 @@
+# Document-Based Knowledge Extraction
+
+You are analyzing project documentation and code to extract actionable knowledge that would be valuable for future development work.
+
+# Project Context
+{project_context}
+
+# Document Analysis Results
+{document_content}
+
+# Instructions
+Extract key points from the provided documents that have reference value for future development:
+
+1. **Prioritize knowledge types (in order of importance):**
+   - Architectural decisions and their rationale
+   - Performance optimizations and benchmarks
+   - Security configurations and constraints
+   - Critical implementation details that are easy to miss
+   - Environment-specific configurations
+   - Debugging and troubleshooting procedures
+
+2. **Identify pain points this solves:**
+   - Common mistakes or anti-patterns to avoid
+   - Frequently asked questions or issues
+   - Performance bottlenecks and their solutions
+   - Deployment quirks and gotchas
+   - Integration challenges and workarounds
+
+3. **For each key point extracted:**
+   - Include the specific source (file path, section) for reference
+   - Provide concrete code examples when relevant
+   - Mark if this is project-specific or general best practice
+   - Include any conditions or prerequisites
+
+4. **Skip these types of information:**
+   - Generic documentation (standard library descriptions)
+   - Outdated or deprecated code without migration notes
+   - Personal opinions without supporting evidence
+   - TODO comments without implementation details
+
+# Output Format
+Extract knowledge in the same JSON format as other extraction tasks:
+- "new_key_points": [...]
+- "effect_rating", "risk_level", "innovation_level" for each point
+- Include "source_document" field pointing to the document origin
+
+Remember: Focus on knowledge that would save time, prevent errors, or improve decision-making in future development work.

@@ -1,0 +1,55 @@
+# Git History Knowledge Extraction
+
+You are analyzing Git commit history to extract valuable technical insights and decisions. Focus on architectural decisions, performance optimizations, and lessons learned from failures.
+
+# Project Context
+{project_context}
+
+# Git History Analysis
+{git_history_content}
+
+# Instructions
+Extract high-value knowledge from the Git commit history:
+
+1. **Prioritize these types of insights:**
+   - Architectural decisions and their rationale
+   - Performance optimizations with measurable results
+   - Critical fixes and the problems they solved
+   - Reverted commits and what they taught us
+   - Parameter tuning and configuration changes
+   - Implementation trade-offs and compromises
+
+2. **For each key point extracted:**
+   - Focus on the "why" behind the change
+   - Include specific technical details or metrics
+   - Note the context and constraints
+   - Mark if this is a "what worked" vs "what didn't work"
+   - Extract generalizable principles
+
+3. **Look for patterns like:**
+   - "Changed timeout from X to Y because..."
+   - "Approach A didn't work due to..."
+   - "Improved performance by X% through..."
+   - "Migrated from A to B for..."
+   - "Fixed critical bug where..."
+
+4. **Rate each knowledge point:**
+   - **effect_rating** (0-1): How impactful is this knowledge?
+   - **risk_level** (-1-0): Is this outdated or context-specific?
+   - **innovation_level** (0-1): Is this a novel approach or general principle?
+
+5. **Skip these types of information:**
+   - Simple bug fixes without broader insights
+   - Style changes or minor refactorings
+   - Version bumps or dependency updates
+   - Merge commits without technical details
+   - Outdated information without clear warning
+
+# Output Format
+Extract knowledge in the standard JSON format:
+- "new_key_points": [...]
+- Each point should include: name, text, tags, effect_rating, risk_level, innovation_level
+- Add "git_commit_hash" field pointing to the source commit when available
+- Mark lessons from failures clearly
+
+Remember: Git history contains both successes and failures. Both are valuable when properly contextualized. Focus on extracting lessons that would help future development decisions.
