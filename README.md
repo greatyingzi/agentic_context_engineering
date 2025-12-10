@@ -17,11 +17,14 @@ Automatically extracts, evaluates, and integrates key insights from conversation
 
 ### Installation
 
+**Linux/macOS Users:**
 ```bash
 git clone https://github.com/greatyingzi/agentic_context_engineering.git
 cd agentic_context_engineering
 npm install
 ```
+
+**Windows Users:** 🪟 See [Windows Installation Guide](WINDOWS_INSTALLATION.md) for Windows-specific requirements and troubleshooting.
 
 ### Environment Setup
 

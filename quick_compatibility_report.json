@@ -1,0 +1,25 @@
+{
+  "timestamp": "/Users/viture",
+  "platform": {
+    "system": "Darwin",
+    "version": "Darwin Kernel Version 24.6.0: Mon Jul 14 11:30:51 PDT 2025; root:xnu-11417.140.69~1/RELEASE_ARM64_T8112",
+    "machine": "arm64"
+  },
+  "python": {
+    "version": "3.9.6",
+    "executable": "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "path": [
+      "/Users/viture/work/agentic_context_engineering/scripts",
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python39.zip",
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9",
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/lib-dynload",
+      "/Users/viture/Library/Python/3.9/lib/python/site-packages",
+      "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/site-packages"
+    ]
+  },
+  "environment": {
+    "home": "/Users/viture",
+    "path": "/Users/viture/.antigravity/antigravity/bin:/Users/viture/.local/bin:/Applications/Yunshu.app/Contents/Public:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/homebrew/bin:/Users/viture/.antigravity/antigravity/bin:/Users/viture/.local/bin:/Users/viture/.lmstudio/bin:/Users/viture/Library/Android/sdk/platform-tools:/Users/viture/.lmstudio/bin:/Users/viture/Library/Android/sdk/platform-tools",
+    "claude_dir": "/Users/viture/.claude"
+  }
+}

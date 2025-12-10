@@ -17,11 +17,14 @@ Agentic Context Engineering (ACE) - 智能知识积累与上下文注入系统�
 
 ### 安装
 
+**Linux/macOS 用户：**
 ```bash
 git clone https://github.com/greatyingzi/agentic_context_engineering.git
 cd agentic_context_engineering
 npm install
 ```
+
+**Windows 用户：** 🪟 请参考 [Windows 安装指南](WINDOWS_INSTALLATION.md) 了解Windows系统要求和故障排除。
 
 ### 配置环境
 
