@@ -21,11 +21,11 @@ from common import (
 # Configuration constants for better maintainability
 MAX_CONVERSATION_MESSAGES = 12  # Number of recent messages to include in context
 MAX_SEED_TAGS = 4  # Maximum tags to infer from prompt
-MAX_CONTEXT_KEYPOINTS = 5  # Maximum key points to include in guidance context
+MAX_CONTEXT_KEYPOINTS = 5  # Maximum key points to include in guidance context (legacy, not used with precision injection)
 MAX_TAGS_FINAL = 6  # Maximum final tags after normalization
 TAGS_GENERATION_MAX_TOKENS = 1024  # Max tokens for tag generation
 GUIDANCE_GENERATION_MAX_TOKENS = 2048  # Max tokens for guidance generation
-MAX_SELECTED_KEYPOINTS = 6  # Maximum key points to select for context
+MAX_SELECTED_KEYPOINTS = 25  # Maximum key points to select for context
 
 
 def extract_json_from_response(response_text: str) -> Optional[Dict[Any, Any]]:
@@ -223,15 +223,17 @@ def generate_context_aware_guidance(
             "brief_guidance": "Cannot assess without client",
         }
 
-    # Prepare context from matched key points
+    # Prepare context from matched key points with IDs
     kpts_context = ""
     if matched_keypoints:
+        # Use more kpts for context during guidance generation (not limiting to MAX_CONTEXT_KEYPOINTS)
+        # This ensures the LLM has enough context to make informed recommendations
         kpts_context = "\n".join(
             [
-                f"- {kp.get('text', '')}"
+                f"- {kp.get('name', 'unknown')}: {kp.get('text', '')}"
                 for kp in matched_keypoints[
-                    :MAX_CONTEXT_KEYPOINTS
-                ]  # Limit to configured number for context
+                    :MAX_SELECTED_KEYPOINTS
+                ]  # Use the larger limit for guidance generation
             ]
         )
 
@@ -290,6 +292,7 @@ def generate_context_aware_guidance(
 
         if parsed:
             guidance_result = parsed.get("task_guidance", {})
+            recommended_kpt_ids = parsed.get("recommended_kpt_ids", [])
             # Ensure required fields exist
             if "brief_guidance" not in guidance_result:
                 guidance_result["brief_guidance"] = ""
@@ -308,8 +311,13 @@ def generate_context_aware_guidance(
                 "complexity": "moderate",
                 "brief_guidance": "Failed to parse guidance response",
             }
+            recommended_kpt_ids = []
 
-    return guidance_result
+    # Return both guidance result and recommended kpt ids
+    return {
+        "guidance": guidance_result,
+        "recommended_kpt_ids": recommended_kpt_ids
+    }
 
 
 def format_context_with_separate_sections(
@@ -317,6 +325,7 @@ def format_context_with_separate_sections(
     guidance_result: dict,
     tags: list[str],
     temperature: float = 0.5,
+    recommended_kpt_ids: list[str] = None,
 ) -> str:
     """Format final context with separate sections for key points and guidance."""
     sections = []
@@ -332,10 +341,23 @@ def format_context_with_separate_sections(
 
     sections.append(temp_info)
 
-    # Section 1: Matched Key Points
-    if selected_key_points:
+    # Section 1: Matched Key Points (only recommended ones)
+    # Filter selected_key_points to only include those with recommended IDs
+    key_points_to_show = []
+    if recommended_kpt_ids is not None:
+        # Create a set for faster lookup
+        recommended_ids_set = set(recommended_kpt_ids)
+        key_points_to_show = [
+            kp for kp in selected_key_points
+            if kp.get('name', '') in recommended_ids_set
+        ]
+    else:
+        # Fallback to all selected points if no recommendations
+        key_points_to_show = selected_key_points
+
+    if key_points_to_show:
         kpts_section = "### 📚 Matched Key Points\n\n"
-        for kp in selected_key_points:
+        for kp in key_points_to_show:
             score = kp.get("score", 0)
             layer = kp.get("_layer", "UNKNOWN")
             total_match = kp.get("_total_match", 0)
@@ -356,7 +378,18 @@ def format_context_with_separate_sections(
         sections.append(kpts_section)
 
     # Section 2: Task Guidance
-    brief_guidance = guidance_result.get("brief_guidance", "")
+    # Handle both old format (direct guidance) and new format (with 'guidance' key)
+    if isinstance(guidance_result, dict):
+        if 'guidance' in guidance_result:
+            # New format with nested 'guidance'
+            guidance_data = guidance_result.get('guidance', {})
+        else:
+            # Old format where guidance_result is the guidance data itself
+            guidance_data = guidance_result
+    else:
+        guidance_data = {}
+
+    brief_guidance = guidance_data.get("brief_guidance", "")
     if brief_guidance.strip():
         guidance_section = "### 💡 Task Guidance\n\n"
         guidance_section += brief_guidance
@@ -410,13 +443,17 @@ def main():
         # === Phase 2: Generate context-aware guidance using matched key points ===
 
         # Generate guidance that's aware of matched key points
-        guidance_result = generate_context_aware_guidance(
+        guidance_with_recommendations = generate_context_aware_guidance(
             messages, prompt_text, selected_key_points, tags, playbook
         )
 
-        # Format context with separate sections
+        # Extract recommended kpt IDs from the response
+        recommended_kpt_ids = guidance_with_recommendations.get("recommended_kpt_ids", [])
+        guidance_result = guidance_with_recommendations.get("guidance", {})
+
+        # Format context with separate sections, using only recommended kpts
         context = format_context_with_separate_sections(
-            selected_key_points, guidance_result, tags, temperature
+            selected_key_points, guidance_with_recommendations, tags, temperature, recommended_kpt_ids
         )
 
         if not context.strip():
@@ -426,7 +463,8 @@ def main():
                     f"Tags: {tags} (count: {len(tags)})\n"
                     f"Selected keypoints: {len(selected_key_points)} items\n"
                     f"Keypoint names: {[kp.get('name', 'NO_NAME') for kp in selected_key_points]}\n"
-                    f"Guidance result type: {type(guidance_result)}\n"
+                    f"Recommended kpt IDs: {recommended_kpt_ids}\n"
+                    f"Guidance result type: {type(guidance_with_recommendations)}\n"
                     f"Guidance brief: {guidance_result.get('brief_guidance', 'NO_BRIEF_GUIDANCE')[:200] if guidance_result else 'NO_GUIDANCE_RESULT'}\n"
                     f"Temperature: {temperature}\n"
                     f"Formatted context length: {len(context)} characters",
@@ -443,12 +481,14 @@ def main():
                 "prompt_tags": prompt_tags,
                 "selected": [kp.get("name") for kp in selected_key_points],
                 "selected_count": len(selected_key_points),
+                "recommended_kpt_ids": recommended_kpt_ids,
+                "recommended_count": len(recommended_kpt_ids),
                 "context": context,
-                "task_guidance": guidance_result,
+                "task_guidance": guidance_with_recommendations,
                 "workflow": {
                     "phase": "Two-phase workflow completed",
                     "phase1": "Tags generated and kpts matched",
-                    "phase2": "Context-aware guidance generated",
+                    "phase2": "Context-aware guidance generated with precise recommendations",
                 },
             }
             save_diagnostic(

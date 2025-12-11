@@ -17,6 +17,8 @@ You are analyzing a user request within a multi-agent system that has already ma
 
 ### Previously Matched Key Points
 {has_keypoints}
+
+Format of key points: `ID: content`
 {matched_keypoints}
 
 ## Your Task
@@ -49,8 +51,19 @@ Return a JSON object with this exact structure:
   "task_guidance": {{
     "complexity": "simple|moderate|complex",
     "brief_guidance": "Concise guidance that builds on or complements matched key points. Focus on actionable steps and agent coordination."
-  }}
+  }},
+  "recommended_kpt_ids": [
+    "kpt_001",
+    "kpt_002"
+  ]
 }}
+
+Note for recommended_kpt_ids:
+- Return an empty array [] if no key points should be injected
+- Include ONLY the kpt IDs of key points that are directly relevant to this specific task
+- Prefer fewer, more relevant key points over many loosely related ones
+- Maximum 5 recommended kpt IDs
+- If multiple key points are very similar, choose only the most relevant one
 
 ## Examples
 
