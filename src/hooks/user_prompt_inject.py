@@ -11,12 +11,14 @@ from common import (
     infer_tags_from_text,
     is_diagnostic_mode,
     load_playbook,
+    load_settings,
     load_template,
     load_transcript,
     normalize_tags,
     save_diagnostic,
     select_relevant_keypoints,
 )
+from .openspec_loader import get_spec_context
 
 # Configuration constants for better maintainability
 MAX_CONVERSATION_MESSAGES = 12  # Number of recent messages to include in context
@@ -407,6 +409,7 @@ def main():
         prompt_text = input_data.get("prompt", "")
         transcript_path = input_data.get("transcript_path")
 
+        settings = load_settings()
         playbook = load_playbook()
 
         messages = []
@@ -451,10 +454,18 @@ def main():
         recommended_kpt_ids = guidance_with_recommendations.get("recommended_kpt_ids", [])
         guidance_result = guidance_with_recommendations.get("guidance", {})
 
+        # === Spec injection (openspec) ===
+        spec_result = get_spec_context(prompt_text, settings)
+        spec_context = spec_result.get("context") or ""
+
         # Format context with separate sections, using only recommended kpts
         context = format_context_with_separate_sections(
             selected_key_points, guidance_with_recommendations, tags, temperature, recommended_kpt_ids
         )
+
+        # Merge spec context first (spec > playbook)
+        if spec_context:
+            context = f"{spec_context}\n\n{context}"
 
         if not context.strip():
             if is_diagnostic_mode():
@@ -485,6 +496,7 @@ def main():
                 "recommended_count": len(recommended_kpt_ids),
                 "context": context,
                 "task_guidance": guidance_with_recommendations,
+                "spec_meta": spec_result.get("meta", {}),
                 "workflow": {
                     "phase": "Two-phase workflow completed",
                     "phase1": "Tags generated and kpts matched",

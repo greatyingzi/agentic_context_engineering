@@ -3,6 +3,12 @@
   "playbook_update_on_clear": true,
   "document_scanning_enabled": true,
   "git_scanning_enabled": true,
+  "enable_spec_injection": true,
+  "enable_spec_auto_generate": true,
+  "spec_paths": [],
+  "default_profile": "default",
+  "global_fallback_profile": null,
+  "spec_max_items": 6,
   "hooks": {
     "UserPromptSubmit": [
       {

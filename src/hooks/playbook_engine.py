@@ -27,11 +27,7 @@ def generate_keypoint_name(existing_names: set) -> str:
 
 
 def load_settings() -> dict:
-    """Load settings from user's claude directory.
-
-    Returns:
-        dict: Settings dictionary with default values if file doesn't exist
-    """
+    """Load settings from user's claude directory with sane defaults."""
     try:
         from .utils.path_utils import get_user_claude_dir
     except ImportError:
@@ -43,15 +39,30 @@ def load_settings() -> dict:
 
     settings_path = get_user_claude_dir() / "settings.json"
 
+    default_settings = {
+        "playbook_update_on_exit": False,
+        "playbook_update_on_clear": False,
+        # Spec/openspec related defaults
+        "enable_spec_injection": True,
+        "enable_spec_auto_generate": True,
+        "spec_paths": [],
+        "default_profile": "default",
+        "global_fallback_profile": None,
+        "spec_max_items": 6,
+    }
+
     if not settings_path.exists():
-        return {"playbook_update_on_exit": False, "playbook_update_on_clear": False}
+        return dict(default_settings)
 
     try:
         with open(settings_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return data
+        # Merge user settings on top of defaults to keep backward compatibility
+        merged = dict(default_settings)
+        merged.update(data or {})
+        return merged
     except Exception:
-        return {"playbook_update_on_exit": False, "playbook_update_on_clear": False}
+        return dict(default_settings)
 
 
 def validate_playbook_structure(data: dict) -> bool:
