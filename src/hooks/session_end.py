@@ -15,6 +15,8 @@ from common import (
     save_diagnostic,
     save_playbook,
     update_playbook_data,
+    load_session_injections,
+    clear_session_injections,
 )
 
 
@@ -52,14 +54,18 @@ async def main():
 
         playbook = load_playbook()
 
+        # Load session-injected KPTs for targeted reflection
+        session_injected_kpts = load_session_injections(session_id)
+
         if is_diagnostic_mode():
             save_diagnostic(
-                f"Starting key points extraction. Current playbook has {len(playbook.get('key_points', []))} key points",
+                f"Starting key points extraction. Current playbook has {len(playbook.get('key_points', []))} key points, "
+                f"session injected KPTs: {len(session_injected_kpts)} items",
                 "session_end_extraction_start",
             )
 
         extraction_result = await extract_keypoints(
-            messages, playbook, "session_end_reflection"
+            messages, playbook, "session_end_reflection", session_injected_kpts
         )
 
         new_points_count = len(extraction_result.get("new_key_points", []))
@@ -79,6 +85,9 @@ async def main():
             )
 
         save_success = save_playbook(playbook)
+
+        # Clear session injection records after processing
+        clear_session_injections(session_id)
 
         if is_diagnostic_mode():
             if save_success:

@@ -4,8 +4,8 @@ import sys
 from typing import Any, Dict, Optional
 
 from common import (
-    format_playbook,
-    generate_task_guidance,
+    clear_session,
+    extract_keypoints,
     get_anthropic_client,
     get_exception_handler,
     infer_tags_from_text,
@@ -16,6 +16,7 @@ from common import (
     normalize_tags,
     save_diagnostic,
     select_relevant_keypoints,
+    save_session_injections,
 )
 
 # Configuration constants for better maintainability
@@ -519,6 +520,18 @@ def main():
         # Extract recommended kpt IDs from the response
         recommended_kpt_ids = guidance_with_recommendations.get("recommended_kpt_ids", [])
         guidance_result = guidance_with_recommendations.get("guidance", {})
+
+        # Save session-injected KPTs for later reflection scoring
+        # Only save the KPTs that were actually recommended and shown to user
+        shown_kpt_names = []
+        if recommended_kpt_ids:
+            # Get the actual KPT objects that were shown
+            recommended_ids_set = set(recommended_kpt_ids)
+            for kp in selected_key_points:
+                if kp.get('name', '') in recommended_ids_set:
+                    shown_kpt_names.append(kp.get('name', ''))
+
+        save_session_injections(session_id, shown_kpt_names)
 
         # Format context with separate sections, using only recommended kpts
         context = format_context_with_separate_sections(

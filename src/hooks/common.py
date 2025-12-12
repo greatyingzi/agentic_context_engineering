@@ -108,6 +108,88 @@ def clear_session():
         session_file.unlink()
 
 
+def save_session_injections(session_id: str, injected_kpt_names: list[str]):
+    """Save the list of KPT names injected during this session."""
+    session_injections_file = get_project_dir() / ".claude" / "session_injections.json"
+
+    # Load existing data
+    if session_injections_file.exists():
+        try:
+            with open(session_injections_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            data = {}
+    else:
+        data = {}
+
+    # Update with current session injections
+    data[session_id] = {
+        "injected_kpts": injected_kpt_names,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    # Save back
+    session_injections_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(session_injections_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def load_session_injections(session_id: str) -> list[str]:
+    """Load the list of KPT names injected during the specified session.
+
+    If exact session match not found, returns injections from most recent session.
+    This ensures compatibility even when session IDs change between hook invocations.
+    """
+    session_injections_file = get_project_dir() / ".claude" / "session_injections.json"
+
+    if not session_injections_file.exists():
+        return []
+
+    try:
+        with open(session_injections_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+            # Try exact match first
+            if session_id in data:
+                return data[session_id].get("injected_kpts", [])
+
+            # Fallback: return injections from most recent session
+            if data:
+                most_recent_session = max(data.items(), key=lambda x: x[1].get("timestamp", ""))
+                return most_recent_session[1].get("injected_kpts", [])
+
+            return []
+    except (json.JSONDecodeError, FileNotFoundError):
+        return []
+
+
+def clear_session_injections(session_id: str):
+    """Clear injection records for a specific session after processing."""
+    session_injections_file = get_project_dir() / ".claude" / "session_injections.json"
+
+    if not session_injections_file.exists():
+        return
+
+    try:
+        with open(session_injections_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Remove the session entry
+        if session_id in data:
+            del data[session_id]
+
+        # Save back if there are still sessions
+        if data:
+            with open(session_injections_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        else:
+            # Remove file if no sessions left
+            session_injections_file.unlink()
+
+    except (json.JSONDecodeError, FileNotFoundError):
+        pass
+
+
 
 
 def calculate_lexical_similarity(text1: str, text2: str) -> float:
@@ -638,8 +720,19 @@ def generate_tags_and_workflow(
 
 
 async def extract_keypoints(
-    messages: list[dict], playbook: dict, diagnostic_name: str = "reflection"
+    messages: list[dict], playbook: dict, diagnostic_name: str = "reflection", session_kpt_names: list[str] = None
 ) -> dict:
+    """
+    Extract key points from messages and evaluate existing playbook.
+
+    Args:
+        messages: Conversation messages to analyze
+        playbook: Current playbook with existing key points
+        diagnostic_name: Name for diagnostic logging
+        session_kpt_names: Optional list of KPT names that were injected in this session.
+                          If provided, only these KPTs will be evaluated for scoring.
+                          Other KPTs will be preserved but not evaluated.
+    """
     client, model = get_anthropic_client()
     if not client:
         if is_diagnostic_mode():
@@ -648,11 +741,25 @@ async def extract_keypoints(
 
     template = load_template("reflection.txt")
 
+    # Split key points based on whether they were injected this session
+    session_kpt_names_set = set(session_kpt_names) if session_kpt_names else set()
+
+    # All existing KPTs (for reference, not evaluation)
     existing_playbook = (
         {kp["name"]: kp["text"] for kp in playbook["key_points"] if not kp.get("pending")}
         if playbook["key_points"]
         else {}
     )
+
+    # Only session KPTs should be evaluated for scoring
+    # This filters existing_playbook to only include session-injected KPTs
+    session_playbook_for_evaluation = (
+        {kp["name"]: kp["text"] for kp in playbook["key_points"]
+         if not kp.get("pending") and kp.get("name") in session_kpt_names_set}
+        if playbook["key_points"]
+        else {}
+    )
+
     pending_playbook = (
         {kp["name"]: kp["text"] for kp in playbook["key_points"] if kp.get("pending")}
         if playbook["key_points"]
@@ -671,15 +778,22 @@ async def extract_keypoints(
 
     existing_tags_context = f"\n\nExisting tags in playbook: {json.dumps(sorted(existing_tags))}"
 
+    # Add session KPT information to the prompt
+    session_context = ""
+    if session_kpt_names:
+        session_context = f"\n\n# Session-Injected Key Points for Evaluation\nThe following key points were injected during this session and should be evaluated for scoring: {json.dumps(session_kpt_names)}"
+
     prompt = template.format(
         trajectories=json.dumps(messages, indent=2, ensure_ascii=False),
         existing_playbook=json.dumps(
-            existing_playbook, indent=2, ensure_ascii=False
+            session_playbook_for_evaluation if session_kpt_names else existing_playbook,
+            indent=2,
+            ensure_ascii=False
         ),
         pending_playbook=json.dumps(
             pending_playbook, indent=2, ensure_ascii=False
         ),
-        existing_tags_context=existing_tags_context,
+        existing_tags_context=existing_tags_context + session_context,
     )
 
     response = client.messages.create(

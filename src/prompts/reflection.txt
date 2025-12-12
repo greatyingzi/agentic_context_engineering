@@ -1,5 +1,5 @@
 # Task
-Extract key points from reasoning trajectories, classify them with concise tags, and evaluate existing playbook key points.
+Extract key points from reasoning trajectories, classify them with concise tags, and evaluate session-injected key points.
 
 # Reasoning Trajectories
 {trajectories}
@@ -72,7 +72,10 @@ Extract key points from reasoning trajectories, classify them with concise tags,
    - **DUPLICATE AVOIDANCE:** Never create "apis" if "api" exists; never create "python3" if "python" exists
    - sources: list of original key point names that were merged (may include existing and pending names). Keep this list concise.
 
-8. Evaluate EACH existing playbook key point based on reasoning trajectories:
+8. **IMPORTANT: Evaluate ONLY session-injected key points based on reasoning trajectories:**
+   - ONLY evaluate key points that were injected during this session (listed in "Session-Injected Key Points for Evaluation" section)
+   - DO NOT evaluate other key points from the playbook - they should be preserved without scoring changes
+   - Use the 7-level rating system:
    - "highly_effective": key point was extremely useful, providing significant value (score +3)
    - "moderately_useful": key point was helpful and worked as expected (score +2)
    - "slightly_useful": key point had minor positive impact (score +1)
@@ -85,6 +88,7 @@ Extract key points from reasoning trajectories, classify them with concise tags,
    - For evaluations, ONLY output key points that need score changes (any non-neutral rating)
    - DO NOT output "neutral" evaluations - they don't affect scores
    - This reduces token usage significantly
+   - Only evaluate session-injected KPTs, not the entire playbook
 
    Use the expanded 7-level rating system for more granular feedback:
    - Positive: "highly_effective", "moderately_useful", "slightly_useful"
