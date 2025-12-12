@@ -373,8 +373,15 @@ def format_context_with_separate_sections(
                 layer_emoji = "⚪"  # White circle for unknown
                 layer_label = "??"
 
-            # Format with layer and score information
-            kpts_section += f"{layer_emoji} **[{layer_label}] {kp.get('text', '')}** (match: {total_match:.2f})\n"
+            # Format with layer, ID and score information for consistency
+            kpt_id = kp.get('name', '')
+            kpt_text = kp.get('text', '')
+            if kpt_id:
+                # Include ID for consistency with what LLM sees during guidance generation
+                kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_id}: {kpt_text}** (match: {total_match:.2f})\n"
+            else:
+                # Fallback for safety
+                kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_text}** (match: {total_match:.2f})\n"
         sections.append(kpts_section)
 
     # Section 2: Task Guidance
@@ -390,9 +397,58 @@ def format_context_with_separate_sections(
         guidance_data = {}
 
     brief_guidance = guidance_data.get("brief_guidance", "")
+    reasoning = guidance_data.get("reasoning", "")
+    trajectory_insights = guidance_data.get("trajectory_insights", {})
+    proactive_alert = guidance_data.get("proactive_alert", {})
+
+    # Debug output
+    if is_diagnostic_mode():
+        print(f"🐛 DEBUG: brief_guidance = '{brief_guidance}'")
+        print(f"🐛 DEBUG: guidance_data keys = {list(guidance_data.keys())}")
+
+    # Always add trajectory insights if available (even without guidance)
+    if trajectory_insights:
+        trajectory_section = "### 📊 Task Trajectory Insights\n\n"
+
+        current_phase = trajectory_insights.get("current_phase", "unknown")
+        complexity_trend = trajectory_insights.get("complexity_trend", "stable")
+        intent_consistency = trajectory_insights.get("intent_consistency", 0.0)
+        detected_patterns = trajectory_insights.get("detected_patterns", [])
+
+        trajectory_section += f"**Current Phase**: {current_phase}\n"
+        trajectory_section += f"**Complexity Trend**: {complexity_trend}\n"
+        trajectory_section += f"**Intent Consistency**: {intent_consistency:.2f}\n"
+
+        if detected_patterns:
+            patterns_str = ", ".join(detected_patterns)
+            trajectory_section += f"**Detected Patterns**: {patterns_str}\n"
+
+        sections.append(trajectory_section)
+
+    # Always add proactive alert if present (even without guidance)
+    if proactive_alert and proactive_alert.get("present", False):
+        alert_section = "### 🚨 Proactive Alert\n\n"
+        alert_type = proactive_alert.get("type", "unknown")
+        alert_message = proactive_alert.get("message", "")
+        confirmation_required = proactive_alert.get("confirmation_required", False)
+
+        alert_section += f"**Type**: {alert_type}\n"
+        if alert_message:
+            alert_section += f"**Message**: {alert_message}\n"
+        if confirmation_required:
+            alert_section += "**User Confirmation Required**: Yes\n"
+
+        sections.append(alert_section)
+
+    # Add guidance section if available
     if brief_guidance.strip():
         guidance_section = "### 💡 Task Guidance\n\n"
         guidance_section += brief_guidance
+
+        # Add reasoning if available
+        if reasoning.strip():
+            guidance_section += f"\n\n*Reasoning: {reasoning}*"
+
         sections.append(guidance_section)
 
     return "\n\n".join(sections)

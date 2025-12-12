@@ -106,6 +106,23 @@ export AGENTIC_CONTEXT_MODEL="claude-3-5-sonnet-20241022"
 3. Restart Claude Code for changes to take effect
 4. Use diagnostic mode (`touch .claude/diagnostic_mode`) for debugging
 
+### ⚠️ CRITICAL DEVELOPMENT PRINCIPLE
+
+🚫 **NEVER** modify installed scripts and configurations in `~/.claude/` directory
+✅ **ALWAYS** make changes within the project directory
+
+**Why this matters:**
+- Maintains version control integrity
+- Enables proper change tracking and management
+- Ensures modifications persist across reinstallation
+- Supports team collaboration and code review
+
+**Correct workflow:**
+1. Modify source files in `src/` directory
+2. Run `npm install` to apply changes
+3. Restart Claude Code to load updates
+4. Never directly edit files in `~/.claude/`
+
 ## Testing Strategy
 
 - Unit tests for individual utility functions in `src/hooks/utils/`
