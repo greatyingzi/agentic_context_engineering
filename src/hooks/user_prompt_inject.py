@@ -253,8 +253,12 @@ def generate_context_aware_guidance(
 
     template = load_template("task_guidance_with_kpts.txt")
 
-    # Use format_params properly instead of manual replacement
-    prompt = template.format(**format_params)
+    # Use a safer template replacement method that handles JSON braces properly
+    prompt = template
+    for key, value in format_params.items():
+        # Use replace instead of format to avoid JSON brace conflicts
+        placeholder = "{" + key + "}"
+        prompt = prompt.replace(placeholder, str(value))
 
     response = client.messages.create(
         model=model,
@@ -327,7 +331,10 @@ def format_context_with_separate_sections(
     temperature: float = 0.5,
     recommended_kpt_ids: list[str] = None,
 ) -> str:
-    """Format final context with separate sections for key points and guidance."""
+    """Format final context with separate sections for key points and guidance.
+
+    Only injects titled content when KPT matching is confirmed.
+    """
     sections = []
 
     # Add temperature info header
@@ -339,10 +346,7 @@ def format_context_with_separate_sections(
     else:
         temp_info += "(Balanced: Mixed selection)"
 
-    sections.append(temp_info)
-
-    # Section 1: Matched Key Points (only recommended ones)
-    # Filter selected_key_points to only include those with recommended IDs
+    # Check if we have any matched KPTs
     key_points_to_show = []
     if recommended_kpt_ids is not None:
         # Create a set for faster lookup
@@ -355,34 +359,43 @@ def format_context_with_separate_sections(
         # Fallback to all selected points if no recommendations
         key_points_to_show = selected_key_points
 
-    if key_points_to_show:
-        kpts_section = "### 📚 Matched Key Points\n\n"
-        for kp in key_points_to_show:
-            score = kp.get("score", 0)
-            layer = kp.get("_layer", "UNKNOWN")
-            total_match = kp.get("_total_match", 0)
+    # CRITICAL: Only inject content when KPT matching is confirmed
+    if not key_points_to_show:
+        # No KPT matches found - return only temperature info or empty string
+        # Based on user requirement: "当没有匹配到kpts时，标题也不需要注入"
+        return temp_info if temp_info.strip() else ""
 
-            # Layer-based styling
-            if layer == "HIGH_CONFIDENCE":
-                layer_emoji = "🔷"  # Blue diamond for high confidence
-                layer_label = "HC"
-            elif layer == "RECOMMENDATION":
-                layer_emoji = "🟢"  # Green circle for recommendation
-                layer_label = "RC"
-            else:
-                layer_emoji = "⚪"  # White circle for unknown
-                layer_label = "??"
+    # We have KPT matches - proceed with full content injection
+    sections.append(temp_info)
 
-            # Format with layer, ID and score information for consistency
-            kpt_id = kp.get('name', '')
-            kpt_text = kp.get('text', '')
-            if kpt_id:
-                # Include ID for consistency with what LLM sees during guidance generation
-                kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_id}: {kpt_text}** (match: {total_match:.2f})\n"
-            else:
-                # Fallback for safety
-                kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_text}** (match: {total_match:.2f})\n"
-        sections.append(kpts_section)
+    # Section 1: Matched Key Points (only recommended ones)
+    kpts_section = "### 📚 Matched Key Points\n\n"
+    for kp in key_points_to_show:
+        score = kp.get("score", 0)
+        layer = kp.get("_layer", "UNKNOWN")
+        total_match = kp.get("_total_match", 0)
+
+        # Layer-based styling
+        if layer == "HIGH_CONFIDENCE":
+            layer_emoji = "🔷"  # Blue diamond for high confidence
+            layer_label = "HC"
+        elif layer == "RECOMMENDATION":
+            layer_emoji = "🟢"  # Green circle for recommendation
+            layer_label = "RC"
+        else:
+            layer_emoji = "⚪"  # White circle for unknown
+            layer_label = "??"
+
+        # Format with layer, ID and score information for consistency
+        kpt_id = kp.get('name', '')
+        kpt_text = kp.get('text', '')
+        if kpt_id:
+            # Include ID for consistency with what LLM sees during guidance generation
+            kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_id}: {kpt_text}** (match: {total_match:.2f})\n"
+        else:
+            # Fallback for safety
+            kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_text}** (match: {total_match:.2f})\n"
+    sections.append(kpts_section)
 
     # Section 2: Task Guidance
     # Handle both old format (direct guidance) and new format (with 'guidance' key)
