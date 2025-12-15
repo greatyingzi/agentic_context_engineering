@@ -333,7 +333,8 @@ def format_context_with_separate_sections(
 ) -> str:
     """Format final context with separate sections for key points and guidance.
 
-    Only injects titled content when KPT matching is confirmed.
+    Always processes guidance data to ensure brief_guidance and reasoning are populated,
+    even when no KPTs are matched.
     """
     sections = []
 
@@ -359,15 +360,96 @@ def format_context_with_separate_sections(
         # Fallback to all selected points if no recommendations
         key_points_to_show = selected_key_points
 
-    # CRITICAL: Only inject content when KPT matching is confirmed
+    # CRITICAL: Always process guidance data to ensure brief_guidance and reasoning are available
+    # This ensures prompt template is always correctly populated even when no KPTs are matched
+
+    # Handle both old format (direct guidance) and new format (with 'guidance' key)
+    if isinstance(guidance_result, dict):
+        if 'guidance' in guidance_result:
+            # New format with nested 'guidance'
+            guidance_data = guidance_result.get('guidance', {})
+        else:
+            # Old format where guidance_result is the guidance data itself
+            guidance_data = guidance_result
+    else:
+        guidance_data = {}
+
+    brief_guidance = guidance_data.get("brief_guidance", "")
+    reasoning = guidance_data.get("reasoning", "")
+    trajectory_insights = guidance_data.get("trajectory_insights", {})
+    proactive_alert = guidance_data.get("proactive_alert", {})
+
+    # Debug output
+    if is_diagnostic_mode():
+        print(f"🐛 DEBUG: brief_guidance = '{brief_guidance}'")
+        print(f"🐛 DEBUG: guidance_data keys = {list(guidance_data.keys())}")
+
+    # Start with temperature info if available
+    if temp_info.strip():
+        sections.append(temp_info)
+
+    # Handle no KPT matches case with fallback guidance
     if not key_points_to_show:
-        # No KPT matches found - return only temperature info or empty string
-        # Based on user requirement: "当没有匹配到kpts时，标题也不需要注入"
-        return temp_info if temp_info.strip() else ""
+        if is_diagnostic_mode():
+            print("🐛 DEBUG: No KPTs matched, generating fallback guidance")
 
-    # We have KPT matches - proceed with full content injection
-    sections.append(temp_info)
+        # Add Task Guidance section with fallback values
+        if brief_guidance or reasoning:
+            guidance_section = "### 🎯 Task Guidance\n\n"
 
+            if brief_guidance:
+                guidance_section += f"**Brief Guidance**: {brief_guidance}\n\n"
+
+            if reasoning:
+                guidance_section += f"**Reasoning**: {reasoning}\n\n"
+
+            sections.append(guidance_section)
+        else:
+            # Provide minimal fallback when even guidance is empty
+            guidance_section = "### 🎯 Task Guidance\n\n"
+            guidance_section += "**Brief Guidance**: Proceed with your request using standard best practices.\n\n"
+            guidance_section += "**Reasoning**: No specific knowledge points matched your current context.\n\n"
+            sections.append(guidance_section)
+
+    # Add trajectory insights if available (both KPT and no-KPT cases)
+    if trajectory_insights:
+        trajectory_section = "### 📊 Task Trajectory Insights\n\n"
+
+        current_phase = trajectory_insights.get("current_phase", "unknown")
+        complexity_trend = trajectory_insights.get("complexity_trend", "stable")
+        intent_consistency = trajectory_insights.get("intent_consistency", 0.0)
+        detected_patterns = trajectory_insights.get("detected_patterns", [])
+
+        trajectory_section += f"**Current Phase**: {current_phase}\n"
+        trajectory_section += f"**Complexity Trend**: {complexity_trend}\n"
+        trajectory_section += f"**Intent Consistency**: {intent_consistency:.2f}\n"
+
+        if detected_patterns:
+            patterns_str = ", ".join(detected_patterns)
+            trajectory_section += f"**Detected Patterns**: {patterns_str}\n"
+
+        sections.append(trajectory_section)
+
+    # Add proactive alert if present (both KPT and no-KPT cases)
+    if proactive_alert and proactive_alert.get("present", False):
+        alert_section = "### 🚨 Proactive Alert\n\n"
+        alert_type = proactive_alert.get("type", "unknown")
+        alert_message = proactive_alert.get("message", "")
+        confirmation_required = proactive_alert.get("confirmation_required", False)
+
+        alert_section += f"**Type**: {alert_type}\n"
+        if alert_message:
+            alert_section += f"**Message**: {alert_message}\n"
+        if confirmation_required:
+            alert_section += "**Confirmation Required**: Yes\n"
+
+        sections.append(alert_section)
+
+    # If no KPT matches, return with all sections (fallback guidance + trajectory + proactive)
+    if not key_points_to_show:
+        return "\n".join(sections)
+
+    # We have KPT matches - add KPT-specific sections
     # Section 1: Matched Key Points (only recommended ones)
     kpts_section = "### 📚 Matched Key Points\n\n"
     for kp in key_points_to_show:
@@ -397,63 +479,7 @@ def format_context_with_separate_sections(
             kpts_section += f"{layer_emoji} **[{layer_label}] {kpt_text}** (match: {total_match:.2f})\n"
     sections.append(kpts_section)
 
-    # Section 2: Task Guidance
-    # Handle both old format (direct guidance) and new format (with 'guidance' key)
-    if isinstance(guidance_result, dict):
-        if 'guidance' in guidance_result:
-            # New format with nested 'guidance'
-            guidance_data = guidance_result.get('guidance', {})
-        else:
-            # Old format where guidance_result is the guidance data itself
-            guidance_data = guidance_result
-    else:
-        guidance_data = {}
-
-    brief_guidance = guidance_data.get("brief_guidance", "")
-    reasoning = guidance_data.get("reasoning", "")
-    trajectory_insights = guidance_data.get("trajectory_insights", {})
-    proactive_alert = guidance_data.get("proactive_alert", {})
-
-    # Debug output
-    if is_diagnostic_mode():
-        print(f"🐛 DEBUG: brief_guidance = '{brief_guidance}'")
-        print(f"🐛 DEBUG: guidance_data keys = {list(guidance_data.keys())}")
-
-    # Always add trajectory insights if available (even without guidance)
-    if trajectory_insights:
-        trajectory_section = "### 📊 Task Trajectory Insights\n\n"
-
-        current_phase = trajectory_insights.get("current_phase", "unknown")
-        complexity_trend = trajectory_insights.get("complexity_trend", "stable")
-        intent_consistency = trajectory_insights.get("intent_consistency", 0.0)
-        detected_patterns = trajectory_insights.get("detected_patterns", [])
-
-        trajectory_section += f"**Current Phase**: {current_phase}\n"
-        trajectory_section += f"**Complexity Trend**: {complexity_trend}\n"
-        trajectory_section += f"**Intent Consistency**: {intent_consistency:.2f}\n"
-
-        if detected_patterns:
-            patterns_str = ", ".join(detected_patterns)
-            trajectory_section += f"**Detected Patterns**: {patterns_str}\n"
-
-        sections.append(trajectory_section)
-
-    # Always add proactive alert if present (even without guidance)
-    if proactive_alert and proactive_alert.get("present", False):
-        alert_section = "### 🚨 Proactive Alert\n\n"
-        alert_type = proactive_alert.get("type", "unknown")
-        alert_message = proactive_alert.get("message", "")
-        confirmation_required = proactive_alert.get("confirmation_required", False)
-
-        alert_section += f"**Type**: {alert_type}\n"
-        if alert_message:
-            alert_section += f"**Message**: {alert_message}\n"
-        if confirmation_required:
-            alert_section += "**User Confirmation Required**: Yes\n"
-
-        sections.append(alert_section)
-
-    # Add guidance section if available
+    # Add guidance section if available (KPT case)
     if brief_guidance.strip():
         guidance_section = "### 💡 Task Guidance\n\n"
         guidance_section += brief_guidance
