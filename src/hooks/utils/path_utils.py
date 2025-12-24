@@ -9,7 +9,7 @@ import glob
 
 
 # 诊断文件管理配置
-MAX_DIAGNOSTIC_FILES = 50  # 最大文件数
+MAX_DIAGNOSTIC_FILES = 15  # 最大文件数
 MAX_DIAGNOSTIC_DAYS = 7   # 保留天数
 MAX_DIAGNOSTIC_SIZE_KB = 100  # 单个文件最大大小(KB)
 
@@ -81,7 +81,7 @@ def _cleanup_old_diagnostic_files():
 
     # 1. 按文件数量限制
     current_count = len(files)
-    if current_count > MAX_DIAGNOSTIC_FILES:
+    if current_count >= MAX_DIAGNOSTIC_FILES:
         files_to_delete = files[MAX_DIAGNOSTIC_FILES:]
         for old_file in files_to_delete:
             try:
